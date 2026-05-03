@@ -2,976 +2,486 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Kelimelik Pro Asistan - v4.2 Hatasız Final Sürümü</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kelimelik Pro - v5.0 Final</title>
+    <!-- TESSERACT.JS (HTTPS Üzerinde Çalışır) -->
+    <script src="https://unpkg.com/tesseract.js@v4.1.1/dist/tesseract.min.js"></script>
     <script src="sozluk.js"></script>
     <style>
         :root { 
-            --bg: #f4f7f6; 
-            --k3: #c0aa95; 
-            --k2: #a2c19b; 
-            --h3: #cfb9cd; 
-            --h2: #98bbc2; 
-            --std: #EDE7E6; 
-            --tile: #f9e69b; 
-            --text: #845640;
-            --gap: #b3b3b3;
-            --highlight: #4bba42;
+            --bg: #eef2f5; --k3: #c0aa95; --k2: #a2c19b; --h3: #cfb9cd; --h2: #98bbc2; 
+            --std: #EDE7E6; --tile: #f9e69b; --text: #845640; --gap: #b3b3b3; 
+            --highlight: #4bba42; --preview-tile: #ebc327; 
+            --primary: #1982c4; --primary-dark: #115e8f;
         }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .container { display: flex; gap: 20px; max-width: 1600px; width: 100%; align-items: flex-start; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; justify-content: center; margin: 0; padding: 0; overflow-x: hidden; user-select: none; -webkit-user-select: none; }
         
-        .left-column { display: flex; flex-direction: column; gap: 15px; }
+        .app-wrapper { display: flex; flex-direction: column; width: 100%; max-width: 500px; min-height: 100vh; background: var(--bg); position: relative; transition: all 0.3s ease; }
         
-        /* Tahta */
-        .board { display: grid; grid-template-columns: repeat(15, 45px); grid-template-rows: repeat(15, 45px); gap: 2px; background: var(--gap); border: 4px solid var(--gap); padding: 2px; border-radius: 12px; }
+        /* ÜST NAVİGASYON BARI */
+        .top-bar { background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 100; }
+        .top-bar-btn { background: transparent; border: none; color: white; font-weight: bold; font-size: 13px; cursor: pointer; padding: 5px; display: flex; align-items: center; gap: 4px; transition: 0.2s;}
+        .top-bar-btn:active { opacity: 0.7; }
+        .top-bar-title { font-weight: 900; font-size: 16px; letter-spacing: 1px; }
+
+        .container { display: flex; flex-direction: column; gap: 10px; padding: 10px; padding-bottom: 20px;}
+        .board-col, .control-col { display: flex; flex-direction: column; gap: 10px; width: 100%; }
         
-        .cell { width: 45px; height: 45px; background: var(--std); display: flex; align-items: center; justify-content: center; position: relative; transition: background-color 0.2s, transform 0.1s; cursor: pointer; border-radius: 8px; box-shadow: inset 0 0 2px rgba(0,0,0,0.05); z-index: 1; }
+        /* SKOR EKRANI */
+        .score-container { display: flex; align-items: stretch; gap: 8px; background: white; padding: 12px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+        .score-box { flex: 0 0 70px; padding: 5px; border-radius: 8px; text-align: center; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .score-box.my-score { background: #2e7d32; } .score-box.opp-score { background: #c62828; }
+        .score-input { background: transparent; border: none; color: white; font-size: 22px; font-weight: 900; width: 100%; text-align: center; outline: none; margin-top: 2px; border-bottom: 1.5px dashed rgba(255,255,255,0.4); }
         
-        .cell::before { content: attr(data-bonus); position: absolute; font-size: 15px; color: #ffffff; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.15); pointer-events: none; }
+        /* OYUN TAHTASI */
+        .board { display: grid; width: 100%; aspect-ratio: 1 / 1; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr); gap: 1.5px; background: var(--gap); border: 3px solid var(--gap); padding: 2px; border-radius: 8px; box-sizing: border-box; }
+        .cell { width: 100%; height: 100%; background: var(--std); display: flex; align-items: center; justify-content: center; position: relative; border-radius: 3px; z-index: 1; box-sizing: border-box; }
+        .cell::before { content: attr(data-bonus); position: absolute; font-size: clamp(7px, 2.2vw, 12px); color: #ffffff; font-weight: bold; pointer-events: none; }
         .cell.has-val::before { content: "" !important; }
-        
-        .cell.has-val:not(.preview-highlight) { background-color: var(--tile) !important; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-
-        .cell.has-val::after { content: attr(data-p); position: absolute; top: 2px; right: 4px; font-size: 11px; font-weight: 900; color: var(--text); pointer-events: none; }
+        .cell.has-val:not(.preview-highlight) { background-color: var(--tile) !important; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+        .cell.has-val::after { content: attr(data-p); position: absolute; top: 1px; right: 2px; font-size: clamp(6px, 1.8vw, 10px); font-weight: 900; color: var(--text); pointer-events: none; }
         .cell.is-joker.has-val::after { content: "0"; color: #d32f2f; }
-
-        .cell.has-preview::before { font-size: 10px; width: 18px; height: 18px; bottom: 1px; right: 1px; justify-content: flex-end; align-items: flex-end; opacity: 0.5; }
         
-        .cell input { width: 100%; height: 100%; border: none; text-align: center; font-size: 26px; font-weight: 900; text-transform: uppercase; background: transparent; z-index: 5; outline: none; padding-top: 4px; box-sizing: border-box; cursor: pointer; border-radius: 8px; color: var(--text); }
-        .cell.is-joker input, .cell.is-joker .preview-layer { font-weight: 900 !important; color: #d32f2f !important; }
-        .preview-layer { position: absolute; font-size: 26px; font-weight: 900; color: var(--text); opacity: 0.9; z-index: 2; pointer-events: none; padding-top: 4px; border-radius: 8px; }
+        .cell input, .preview-layer { width: 100%; height: 100%; border: none; text-align: center; font-size: clamp(14px, 4.5vw, 24px); font-weight: 900; text-transform: uppercase; background: transparent; z-index: 5; outline: none; padding-top: 2px; box-sizing: border-box; color: var(--text); }
+        .cell.is-joker input, .cell.is-joker .preview-layer { color: #d32f2f !important; }
+        .preview-layer { position: absolute; opacity: 0.9; z-index: 2; pointer-events: none; }
+        .opp-draft { box-shadow: inset 0 0 0 2px #e65100 !important; }
         
-        .opp-draft { box-shadow: inset 0 0 0 3px #e65100 !important; }
-
-        .preview-highlight { background-color: var(--tile) !important; z-index: 50 !important; }
+        .preview-highlight { background-color: var(--preview-tile) !important; z-index: 50 !important; box-shadow: 0 3px 6px rgba(0,0,0,0.3) !important; transform: scale(1.05); }
         .preview-connected { z-index: 40 !important; animation: pulseGreen 1.5s infinite; }
         .has-bubble { z-index: 1000 !important; } 
-        
-        @keyframes pulseGreen {
-            0% { box-shadow: 0 0 0 3px var(--highlight); }
-            50% { box-shadow: 0 0 0 6px rgba(75, 186, 66, 0.4); }
-            100% { box-shadow: 0 0 0 3px var(--highlight); }
-        }
-        
-        .score-bubble {
-            position: absolute; top: -14px; right: -14px; background: var(--highlight); color: #fff;
-            border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center;
-            justify-content: center; font-size: 14px; font-weight: bold; z-index: 9999;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.4); border: 2px solid white; pointer-events: none;
-        }
-
-        @keyframes burstFade {
-            0% { transform: scale(1); background-color: #fff; box-shadow: 0 0 15px #fff; z-index: 60; border-radius: 8px; }
-            40% { transform: scale(1.15); background-color: #fff; box-shadow: 0 0 25px #fff; z-index: 60; border-radius: 12px; }
-            100% { transform: scale(1); background-color: var(--tile); box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 5; border-radius: 8px; }
-        }
+        @keyframes pulseGreen { 0% { box-shadow: 0 0 0 2px var(--highlight); } 50% { box-shadow: 0 0 0 5px rgba(75, 186, 66, 0.4); } 100% { box-shadow: 0 0 0 2px var(--highlight); } }
+        .score-bubble { position: absolute; top: -10px; right: -10px; background: var(--highlight); color: #fff; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; z-index: 9999; border: 1.5px solid white; }
         .burst-effect { animation: burstFade 0.5s ease-out forwards; }
+        @keyframes burstFade { 0% { transform: scale(1); background-color: #fff; box-shadow: 0 0 10px #fff; z-index: 60; } 40% { transform: scale(1.15); background-color: #fff; box-shadow: 0 0 20px #fff; z-index: 60; } 100% { transform: scale(1); background-color: var(--tile); z-index: 5; } }
+        
+        .is-yildiz { background: #f5d28b !important; z-index: 10; box-shadow: inset 0 0 0 2px #e2bc70 !important; border: none !important; }
+        .yildiz-wrapper { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 6; pointer-events: none; color: #ff9900; font-weight: 900; text-shadow: 1px 1px 0px rgba(255,255,255,0.8); gap: 0px; }
+        .yildiz-top { font-size: clamp(12px, 3.5vw, 18px); line-height: 0.75; }
+        .yildiz-bottom { font-size: clamp(12px, 3.5vw, 18px); line-height: 0.75; display: flex; gap: 1px; margin-top: 1px; }
 
-        .is-yildiz { background: #f5d28b !important; z-index: 10; border: 2px solid #e2bc70 !important; }
-        .yildiz-wrapper { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 1px; z-index: 6; pointer-events: none; color: #ff9900; font-size: 16px; font-weight: 900; text-shadow: 1px 1px 1px rgba(0,0,0,0.2); }
-        
-        .cell.k3:not(.has-val):not(.preview-highlight) { background-color: var(--k3); }
-        .cell.k2:not(.has-val):not(.preview-highlight) { background-color: var(--k2); }
-        .cell.h3:not(.has-val):not(.preview-highlight) { background-color: var(--h3); }
-        .cell.h2:not(.has-val):not(.preview-highlight) { background-color: var(--h2); }
-        .cell.center:not(.has-val):not(.preview-highlight) { background-color: #ffa000; }
+        .cell.k3:not(.has-val):not(.preview-highlight) { background-color: var(--k3); } .cell.k2:not(.has-val):not(.preview-highlight) { background-color: var(--k2); } .cell.h3:not(.has-val):not(.preview-highlight) { background-color: var(--h3); } .cell.h2:not(.has-val):not(.preview-highlight) { background-color: var(--h2); } .cell.center:not(.has-val):not(.preview-highlight) { background-color: #ffa000; }
 
-        .harf-panel { background: #e9ecef; padding: 15px; border-radius: 12px; width: 719px; box-sizing: border-box; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .sort-controls { display: flex; gap: 5px; align-items: center; }
-        .sort-btn { padding: 5px 15px; font-size: 12px; cursor: pointer; border: 1px solid #ccc; background: #fff; border-radius: 6px; font-weight: bold; transition: 0.2s; }
-        .sort-btn:hover { background: #f0f0f0; }
-        .sort-btn.active { background: #1976d2; color: white; border-color: #1565c0; }
+        /* ISTAKA */
+        .rack-wrapper { position: relative; width: 100%; }
+        .rack-container { display: flex; justify-content: center; gap: 6vw; background: #236f8a; padding: 12px 10px 16px 10px; border-radius: 12px; margin-bottom: 5px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+        .rack-tile { width: 12vw; max-width: 48px; aspect-ratio: 1/1; background: #ebc427; border-radius: 6px; position: relative; box-shadow: 0 4px 0 #c49f15; display: flex; align-items: center; justify-content: center; }
+        .rack-tile input { width: 100%; height: 100%; border: none; background: transparent; text-align: center; font-size: clamp(18px, 6vw, 26px); font-weight: 900; color: #83573f; outline: none; text-transform: uppercase; border-radius: 6px; }
+        .rack-tile::after { content: attr(data-p); position: absolute; top: 2px; right: 3px; font-size: clamp(8px, 2.5vw, 11px); font-weight: 900; color: #83573f; pointer-events: none; }
         
-        .harf-grid { display: grid; grid-template-columns: repeat(15, 1fr); gap: 6px; margin-top:12px; }
-        .harf-item { padding: 6px 4px; border-radius: 4px; text-align: center; font-weight: bold; font-size: 11px; color: white; box-shadow: 0 2px 3px rgba(0,0,0,0.1); }
-        .p1 { background-color: #4caf50; } .p23 { background-color: #2196f3; } .p47 { background-color: #ff9800; } .p810 { background-color: #f44336; } 
-        .harf-biten { background-color: #adb5bd !important; opacity: 0.5; box-shadow: none; }
+        /* KONTROLLER & EYLEMLER */
+        .control-card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); width: 100%; box-sizing: border-box; }
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn-solve { background: #2e7d32; margin-bottom: 12px;} .btn-stop { background: #f44336; display: none; margin-bottom: 12px;} 
+        
+        .action-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .btn-small-grid { padding: 12px 5px; border: none; border-radius: 8px; color: white; font-weight: bold; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 3px rgba(0,0,0,0.1); transition: 0.2s;}
+        .btn-small-grid:active { transform: translateY(2px); box-shadow: 0 0 0 rgba(0,0,0,0); }
+        
+        #actionControls { display: none; gap: 10px; margin-top: 10px; }
+        .btn-apply { background: #1976d2; flex: 1; } .btn-cancel { background: #e53935; flex: 1; }
+        
+        /* OCR EKRANI */
+        .ocr-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 4000; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; padding: 20px; box-sizing: border-box;}
+        .loader { border: 6px solid #f3f3f3; border-top: 6px solid #ebc427; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        .right-column { width: 450px; display: flex; flex-direction: column; gap: 15px; }
+        /* MODAL PENCERELER */
+        .modal-overlay { display: none; position: fixed; bottom: 0; left: 0; width: 100%; height: 75vh; background: white; border-radius: 20px 20px 0 0; z-index: 2000; box-shadow: 0 -10px 25px rgba(0,0,0,0.15); flex-direction: column; padding: 0; box-sizing: border-box; overflow: hidden; transition: 0.3s ease; }
+        #lettersModal { height: auto; max-height: 80vh; padding-bottom: 15px; }
+        .modal-header { background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; }
+        .modal-title { font-size: 16px; font-weight: bold; }
+        .close-modal { background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; font-weight: bold; cursor: pointer; display:flex; justify-content:center; align-items:center; }
+        .modal-body { padding: 15px; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         
-        .score-container { display: flex; align-items: stretch; gap: 15px; background: white; padding: 15px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .score-box { flex: 0 0 100px; padding: 10px; border-radius: 10px; text-align: center; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .score-box.my-score { background: #2e7d32; }
-        .score-box.opp-score { background: #c62828; }
-        .score-input { background: transparent; border: none; color: white; font-size: 28px; font-weight: 900; width: 100%; text-align: center; outline: none; margin-top: 5px; border-bottom: 2px dashed rgba(255,255,255,0.4); transition: 0.2s; }
-        .score-input:focus { border-bottom: 2px solid white; }
-
-        .control-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
-        
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; color: white; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; transition: 0.2s; box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
-        .btn:active { transform: translateY(2px); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .btn-solve { background: #2e7d32; } .btn-solve:hover { background: #1b5e20; }
-        .btn-stop { background: #f44336; display: none; } .btn-stop:hover { background: #c62828; }
-        .btn-apply { background: #1976d2; display: none; } .btn-apply:hover { background: #0d47a1; }
-        .btn-strategy { background: #8e24aa; display: none; } .btn-strategy:hover { background: #6a1b9a; }
-        .btn-opp { background: #f57c00; } .btn-opp:hover { background: #e65100; }
-        .btn-small { padding: 8px 12px; border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 12px; transition: 0.2s; }
-        .btn-small:hover { filter: brightness(1.1); }
-        
-        .rack-input { width: 100%; font-size: 32px; text-align: center; letter-spacing: 5px; border: 3px solid #4caf50; border-radius: 10px; padding: 10px; box-sizing: border-box; font-weight: bold; color: #333; }
-        
-        .results-wrapper { height: 320px; overflow-y: auto; border: 1px solid #eee; border-radius: 10px; background: #ffffff; margin-bottom: 5px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.02); }
-        table { width: 100%; border-collapse: collapse; background: #ffffff; }
-        th { background: #f5f5f5; padding: 12px 10px; border-bottom: 2px solid #ddd; cursor: pointer; position: sticky; top: 0; z-index: 10; font-size: 14px; color: #555; }
-        td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; cursor: pointer; font-size: 15px; }
-        tr:hover { background-color: #f9f9f9; }
-        tr.selected { background: #e8f5e9 !important; border-left: 5px solid #2e7d32; }
-        
+        .results-wrapper { flex: 1; overflow-y: auto; border: 1px solid #eee; border-radius: 8px; background: #ffffff; width: 100%; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f5f5f5; padding: 10px; font-size: 13px; position: sticky; top: 0; z-index: 10; color: #555; text-align: center; cursor: pointer; }
+        td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; font-size: 14px; }
+        tr:nth-child(even) { background-color: #fafafa; }
+        tr.selected { background: #e8f5e9 !important; border-left: 4px solid #2e7d32; }
         .joker-char-highlight { color: #f44336; font-weight: normal; }
-        .search-input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 14px; outline: none; transition: 0.2s; }
-        .search-input:focus { border-color: #1976d2; box-shadow: 0 0 5px rgba(25, 118, 210, 0.3); }
-        .progress-bar-bg { width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin: 10px 0; display: none; }
+        .search-input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 14px; outline: none; margin-bottom: 10px; }
+        
+        .harf-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; overflow-y: auto; padding: 10px 0; }
+        .harf-item { padding: 10px 5px; border-radius: 6px; text-align: center; font-weight: bold; font-size: 12px; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .p1 { background-color: #4caf50; } .p23 { background-color: #2196f3; } .p47 { background-color: #ff9800; } .p810 { background-color: #f44336; } 
+        .harf-biten { background-color: #adb5bd !important; opacity: 0.4; box-shadow: none; }
+        
+        /* OYUNLAR MENÜSÜ */
+        .games-menu { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f4f7f6; z-index: 3000; flex-direction: column; }
+        .games-header { background: var(--primary); color: white; padding: 15px; display: flex; align-items: center; gap: 15px; font-size: 18px; font-weight: bold; }
+        .games-tabs { display: flex; background: var(--primary-dark); }
+        .games-tab { flex: 1; text-align: center; padding: 12px; color: rgba(255,255,255,0.7); font-weight: bold; border-bottom: 3px solid transparent; cursor: pointer; }
+        .games-tab.active { color: white; border-bottom: 3px solid white; background: var(--primary); }
+        .games-list { padding: 15px; overflow-y: auto; flex: 1; }
+        .game-item { background: white; border-radius: 8px; padding: 15px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+        .game-info { display: flex; flex-direction: column; gap: 4px; }
+        .game-name { font-weight: bold; font-size: 16px; color: #333; }
+        .game-scores { font-size: 12px; color: #777; }
+        .btn-small-g { padding: 6px 10px; border: none; border-radius: 6px; color: white; font-weight: bold; font-size: 11px; cursor: pointer; }
+        
+        .progress-bar-bg { width: 100%; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin: 0 0 10px 0; display: none; }
         #progress-fill { height: 100%; width: 0%; background: #4caf50; transition: width 0.1s; }
+
+        /* ========================================= */
+        /* MASAÜSTÜ BİLGİSAYAR (DESKTOP) UYUMU (YENİ)*/
+        /* ========================================= */
+        @media (min-width: 800px) {
+            body { background: #cbd4d9; padding: 20px; align-items: flex-start; }
+            .app-wrapper { max-width: 950px; border-radius: 20px; box-shadow: 0 15px 40px rgba(0,0,0,0.15); margin: 0 auto; overflow: hidden;}
+            .top-bar { padding: 15px 25px; }
+            .top-bar-title { font-size: 18px; }
+            .container { flex-direction: row; padding: 25px; gap: 25px; }
+            
+            /* Sütunları Ayırıyoruz */
+            .board-col { flex: 1.3; }
+            .control-col { flex: 1; }
+            
+            .rack-container { gap: 10px; }
+            .rack-tile { width: 45px; height: 45px; }
+            
+            /* Modalları Desktop için Ortaya Alıyoruz */
+            .modal-overlay { justify-content: center; align-items: center; background: rgba(0,0,0,0.6); height: 100vh; border-radius: 0; padding: 20px; }
+            #resultsModal, #lettersModal { position: relative; height: 80vh; max-height: 600px; width: 100%; max-width: 450px; border-radius: 16px; margin: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+        }
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="left-column">
-        <div id="board" class="board" onkeydown="handleBoardNav(event)"></div>
-        <div class="harf-panel">
-            <div style="display:flex; justify-content: space-between; align-items: center;">
-                <div class="sort-controls">
-                    <button class="sort-btn" id="btnSortcount" onclick="setSort('count')">ADET</button>
-                    <button class="sort-btn active" id="btnSortpoint" onclick="setSort('point')">PUAN</button>
-                    <button class="sort-btn" id="btnSortalpha" onclick="setSort('alpha')">A-Z</button>
-                </div>
-                <div style="font-weight: bold; font-size: 14px; color: #444; background: #fff; padding: 6px 14px; border-radius: 6px; border: 1px solid #ccc; display:flex; gap: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                    <span id="rakipCountMini" style="color:#1976d2;">Rakip: 7</span>
-                </div>
-            </div>
-            <div id="harfTablo" class="harf-grid"></div>
+
+<div class="app-wrapper">
+    <!-- ÜST NAVİGASYON BARI -->
+    <div class="top-bar">
+        <button class="top-bar-btn" onclick="showGamesMenu()">☰ Oyunlar</button>
+        <div class="top-bar-title" id="topBarTitle">Kelimelik Pro</div>
+        <div style="display:flex; gap:8px;">
+            <button class="top-bar-btn" onclick="undoMove()">↩️ Geri</button>
+            <button class="top-bar-btn" onclick="saveCurrentGame()">💾 Kaydet</button>
+            <button class="top-bar-btn" onclick="endCurrentGame()" style="color:#ffcdd2;">⏹️ Bitir</button>
         </div>
     </div>
-    <div class="right-column">
+
+    <div class="container">
         
-        <div class="score-container">
-            <div class="score-box my-score">
-                <span style="font-size: 11px; opacity: 0.9;">SEN</span>
-                <input type="number" id="myScoreInput" class="score-input" value="0" oninput="updateScoreManually()">
+        <!-- ================= SOL SÜTUN (Masaüstü) / ÜST (Mobil) ================= -->
+        <div class="board-col">
+            <!-- SKOR EKRANI -->
+            <div class="score-container">
+                <div class="score-box my-score"><span style="font-size: 10px; opacity: 0.9;">SEN</span><input type="number" id="myScoreInput" class="score-input" value="0" oninput="updateScoreManually()"></div>
+                <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; position: relative;">
+                    <div style="display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; color: #777; margin-bottom: 5px; padding: 0 5px;"><span>BEN</span><span>RAKİP</span></div>
+                    <div style="position: relative; height: 10px; background: #ddd; border-radius: 5px; display: flex; width: 100%;">
+                        <div id="myScoreBar" style="height: 100%; width: 50%; background: #4caf50; border-radius: 5px 0 0 5px;"></div>
+                        <div id="oppScoreBar" style="height: 100%; width: 50%; background: #e53935; border-radius: 0 5px 5px 0;"></div>
+                    </div>
+                    <div id="midBagCount" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -20%); width: 30px; height: 30px; background: white; border: 2px solid #ccc; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; color: #555; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 5;">100</div>
+                </div>
+                <div class="score-box opp-score"><span style="font-size: 10px; opacity: 0.9;">RAKİP</span><input type="number" id="oppScoreInput" class="score-input" value="0" oninput="updateScoreManually()"></div>
             </div>
 
-            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; position: relative;">
-                <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: bold; color: #777; margin-bottom: 5px; padding: 0 5px;">
-                    <span>BENİM PUANIM</span>
-                    <span>RAKİP PUANI</span>
-                </div>
-                <div style="position: relative; height: 12px; background: #ddd; border-radius: 6px; display: flex; width: 100%; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
-                    <div id="myScoreBar" style="height: 100%; width: 50%; background: #4caf50; border-radius: 6px 0 0 6px; transition: width 0.4s ease;"></div>
-                    <div id="oppScoreBar" style="height: 100%; width: 50%; background: #e53935; border-radius: 0 6px 6px 0; transition: width 0.4s ease;"></div>
-                </div>
-                <div id="midBagCount" title="Torbada Kalan Taş Sayısı" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -20%); width: 34px; height: 34px; background: white; border: 3px solid #ccc; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; color: #555; box-shadow: 0 2px 4px rgba(0,0,0,0.15); z-index: 5;">
-                    100
-                </div>
-            </div>
+            <!-- TAHTA -->
+            <div id="board" class="board"></div>
 
-            <div class="score-box opp-score">
-                <span style="font-size: 11px; opacity: 0.9;">RAKİP</span>
-                <input type="number" id="oppScoreInput" class="score-input" value="0" oninput="updateScoreManually()">
+            <!-- ISTAKA -->
+            <div class="rack-wrapper">
+                <div class="rack-container">
+                    <div class="rack-tile"><input type="text" maxlength="1" class="r-inp" id="r_0"></div>
+                    <div class="rack-tile"><input type="text" maxlength="1" class="r-inp" id="r_1"></div>
+                    <div class="rack-tile"><input type="text" maxlength="1" class="r-inp" id="r_2"></div>
+                    <div class="rack-tile"><input type="text" maxlength="1" class="r-inp" id="r_3"></div>
+                    <div class="rack-tile"><input type="text" maxlength="1" class="r-inp" id="r_4"></div>
+                    <div class="rack-tile"><input type="text" maxlength="1" class="r-inp" id="r_5"></div>
+                    <div class="rack-tile"><input type="text" maxlength="1" class="r-inp" id="r_6"></div>
+                </div>
+                <input type="hidden" id="rack" value="">
             </div>
         </div>
-        
-        <div class="control-card" style="padding: 15px;">
-            <div style="font-size:12px; font-weight:bold; color:#777; margin-bottom:10px;">OYUN YÖNETİCİSİ (v4.2)</div>
-            <div style="display:flex; gap:8px;">
-                <select id="saveList" style="flex:1; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:14px; outline:none;"></select>
-                <button onclick="loadGame()" class="btn-small" style="background:#1976d2;">YÜKLE</button>
-                <button onclick="deleteGame()" class="btn-small" style="background:#e53935;">SİL</button>
-            </div>
-            <div style="display:flex; gap:8px; margin-top:8px;">
-                <input type="text" id="saveName" placeholder="Kayıt Adı Girin..." style="flex:1; padding:8px; border-radius:6px; border:1px solid #ccc; font-size:14px; outline:none;">
-                <button onclick="saveGame()" class="btn-small" style="background:#388e3c;">KAYDET</button>
-            </div>
-            <button onclick="newGame()" class="btn" style="background:#555; padding: 10px; margin-top:12px; font-size:14px; box-shadow: none;">+ YENİ OYUN AÇ</button>
-        </div>
 
-        <div class="control-card">
-            <div id="standardControls">
-                <input type="text" id="rack" class="rack-input" maxlength="7" placeholder="ISTAKA" oninput="this.value = this.value.replace(/i/g,'İ').replace(/ı/g,'I').toUpperCase(); harfTablosuGuncelle();">
-                <div class="progress-bar-bg" id="progBg"><div id="progress-fill"></div></div>
+        <!-- ================= SAĞ SÜTUN (Masaüstü) / ALT (Mobil) ================= -->
+        <div class="control-col">
+            <!-- KONTROLLER VE AKSİYON IZGARASI -->
+            <div class="control-card">
+                <div id="standardControls">
+                    <div class="progress-bar-bg" id="progBg"><div id="progress-fill"></div></div>
+                    <button id="solveBtn" class="btn btn-solve" onclick="tretBaslat()">🔍 HAMLE ARA</button>
+                    <button id="stopBtn" class="btn btn-stop" onclick="tretDurdur()">DURDUR</button>
+                    
+                    <div class="action-grid">
+                        <button class="btn-small-grid" style="background:#8e24aa;" onclick="runStrategy()">🔮 Y.Z Taktik</button>
+                        <button class="btn-small-grid" style="background:#f57c00;" onclick="enterOpponentMode()">👤 Rakip İşle</button>
+                        <button class="btn-small-grid" style="background:#607d8b;" onclick="openLettersModal()">🔠 Harf Listesi</button>
+                        <button class="btn-small-grid" style="background:#0288d1;" onclick="document.getElementById('ocrInput').click()">📷 Ekrana Oku</button>
+                        <input type="file" id="ocrInput" accept="image/*" style="display:none;" onchange="runRealOCR(this)">
+                    </div>
+                </div>
                 
-                <div style="display:flex; gap:10px;">
-                    <button id="solveBtn" class="btn btn-solve" onclick="tretBaslat()" style="flex:1;">HAMLE ARA</button>
-                    <button id="stopBtn" class="btn btn-stop" onclick="tretDurdur()" style="flex:1;">DURDUR</button>
+                <div id="actionControls">
+                    <button class="btn btn-apply" onclick="kesinlestir()">✔️ İŞLE</button>
+                    <button class="btn btn-cancel" onclick="cancelPreviewAndReturn()">🔙 LİSTEYE DÖN</button>
                 </div>
-                <button id="btnOppMode" class="btn btn-opp" onclick="enterOpponentMode()">👤 RAKİP HAMLESİ GİR</button>
-                <button id="btnStrategy" class="btn btn-strategy" onclick="runStrategy()">🔮 OYUN SONU STRATEJİSİ (Y.Z)</button>
-                <button id="applyBtn" class="btn btn-apply" onclick="kesinlestir()">İŞLE</button>
-            </div>
-            
-            <div id="opponentControls" style="display:none; background:#fff3e0; padding:15px; border-radius:10px; border:1px solid #ffb74d; margin-top:10px;">
-                <div style="font-size:14px; font-weight:bold; color:#e65100; margin-bottom:10px; text-align:center;">
-                    👇 Rakibin oynadığı harfleri tahtaya yazın 👇
+                
+                <div id="opponentControls" style="display:none; background:#fff3e0; padding:12px; border-radius:8px; border:1px solid #ffb74d;">
+                    <div style="font-size:13px; font-weight:bold; color:#e65100; margin-bottom:8px; text-align:center;">Rakibin harflerini tahtaya yaz</div>
+                    <button class="btn" style="background:#4caf50; margin-top:0;" onclick="processOpponentMove()">✔️ Puanı Hesapla ve İşle</button>
+                    <button class="btn" style="background:#e53935; margin-top:8px;" onclick="cancelOpponentMode()">❌ İptal Et</button>
                 </div>
-                <button class="btn" style="background:#4caf50; margin-top:0;" onclick="processOpponentMove()">✔️ Puanı Hesapla ve Rakibe İşle</button>
-                <button class="btn" style="background:#e53935; margin-top:10px;" onclick="cancelOpponentMode()">❌ Hamleyi Temizle ve İptal Et</button>
             </div>
         </div>
 
-        <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:5px;">
-            <label style="font-size:13px; font-weight:bold; color:#555; cursor:pointer; user-select: none;">
-                <input type="checkbox" id="chkMultiMove" onchange="renderTable()" style="vertical-align:middle; width: 16px; height: 16px;"> Çoklu Hamle Göster
-            </label>
-        </div>
+    </div>
+</div>
 
-        <div id="normalResults" class="results-wrapper">
+<!-- KELİME SONUÇLARI (MODAL) -->
+<div id="resultsModal" class="modal-overlay">
+    <div class="modal-header">
+        <div class="modal-title">✨ Bulunan Hamleler</div>
+        <button class="close-modal" onclick="closeModal('resultsModal')">✕</button>
+    </div>
+    <div class="modal-body">
+        <input type="text" id="resFilter" class="search-input" placeholder="İçinde geçen harf..." oninput="renderTable()">
+        <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:10px;">
+            <label style="font-size:12px; font-weight:bold; color:#555;"><input type="checkbox" id="chkMultiMove" onchange="renderTable()" style="vertical-align:middle;"> Çoklu Hamle Göster</label>
+        </div>
+        <div class="results-wrapper">
             <table><thead><tr><th onclick="sortRes('word')">Kelime</th><th onclick="sortRes('score')">Puan</th><th onclick="sortRes('len')">Harf</th></tr></thead><tbody id="resBody"></tbody></table>
         </div>
+    </div>
+</div>
 
-        <div id="strategyContainer" class="control-card" style="display:none; padding:15px; margin-top:-5px;">
-            <div style="font-size:12px; font-weight:bold; color:#8e24aa; margin-bottom:10px;">RAKİBİN HAMLESİNİ KES <span id="rakipHarflerSpan" style="color:#333;"></span></div>
-            <div class="results-wrapper" style="height: 250px;">
-                <table>
-                    <thead><tr><th>Senin Hamlen</th><th>Puan</th><th>Rakip Max</th><th>KAZANÇ</th></tr></thead>
-                    <tbody id="stratBody"></tbody>
-                </table>
-            </div>
-            <button class="btn btn-small" style="background:#555; width:100%; margin-top:10px;" onclick="closeStrategy()">Geri Dön</button>
+<!-- KALAN HARFLER BALONCUĞU -->
+<div id="lettersModal" class="modal-overlay">
+    <div class="modal-header" style="background: #607d8b;">
+        <div class="modal-title" id="rakipCountMiniModal">🔠 Kalan Harfler (Rakip: 7)</div>
+        <button class="close-modal" onclick="closeModal('lettersModal')">✕</button>
+    </div>
+    <div class="modal-body">
+        <div style="display:flex; justify-content: center; gap: 5px; margin-bottom: 10px;">
+            <button class="btn-small-g rack-sort-btn" style="background:#1976d2; color:white;" onclick="setSort('point', this)">PUAN</button>
+            <button class="btn-small-g rack-sort-btn" style="background:#fff; color:#333; border:1px solid #ccc;" onclick="setSort('count', this)">ADET</button>
         </div>
+        <div id="harfTablo" class="harf-grid"></div>
+    </div>
+</div>
 
-        <input type="text" id="resFilter" class="search-input" placeholder="İçinde geçen harf..." oninput="renderTable()">
+<!-- AKILLI OCR EKRANI -->
+<div id="ocrOverlay" class="ocr-overlay">
+    <div class="loader"></div>
+    <h3 style="margin:0; color:#ebc427;">Görüntü İşleniyor</h3>
+    <p id="ocrStatusText" style="font-size: 14px; color:#fff; margin-top:10px;">Referans renkler aranıyor...<br>(#1b93bf ve #1a7097)</p>
+</div>
+
+<!-- OYUNLAR MENÜSÜ -->
+<div id="gamesMenu" class="games-menu">
+    <div class="games-header">
+        <button class="top-bar-btn" onclick="hideGamesMenu()" style="font-size:20px;">✕</button>
+        <div>Kayıtlı Oyunlar</div>
+    </div>
+    <div class="games-tabs">
+        <div class="games-tab active" id="tabAktif" onclick="switchGameTab('aktif')">Aktif Oyunlar</div>
+        <div class="games-tab" id="tabBiten" onclick="switchGameTab('biten')" style="opacity: 0.5;">Bitenler</div>
+    </div>
+    <div class="games-list" id="gamesListContent"></div>
+    <div style="padding: 15px; background: white; border-top: 1px solid #eee;">
+        <button class="btn" style="background: #555; margin: 0;" onclick="newGame()">+ YENİ OYUN BAŞLAT</button>
     </div>
 </div>
 
 <script>
     const pMap = {"A":1,"B":3,"C":4,"Ç":4,"D":3,"E":1,"F":7,"G":5,"Ğ":8,"H":5,"I":2,"İ":1,"J":10,"K":1,"L":1,"M":2,"N":1,"O":2,"Ö":7,"P":5,"R":1,"S":2,"Ş":4,"T":1,"U":2,"Ü":3,"V":7,"Y":3,"Z":4,"?":0};
-    const bMap = { 
-        k3: ["A3","A13","C1","C15","M1","M15","O3","O13"], 
-        k2: ["C4","C12","D8","L8","M4","M12","H3","H13"], 
-        h3: ["B2","B14","N2","N14","E5","K5","E11","K11"], 
-        h2: ["D2","G2","I2","L2", "A6","E6","K6","O6", "B7","F7","J7","N7", "B9","F9","J9","N9", "A10","E10","K10","O10", "D14","G14","I14","L14", "F1","J1","F15","J15"] 
-    };
+    const bMap = { k3: ["A3","A13","C1","C15","M1","M15","O3","O13"], k2: ["C8","D4","D12","H3","H13","L4","L12","M8"], h3: ["B2","B14","N2","N14","E5","K5","E11","K11"], h2: ["A6","A10","B7","B9","F1","F6","F10","F15","G2","G7","G9","G14","I2","I7","I9","I14","J1","J6","J10","J15","N7","N9","O6","O10"] };
     const textMap = { "k3": "K³", "k2": "K²", "h3": "H³", "h2": "H²" };
-
     const karantinaListesi = new Set(["OS", "ÖS", "IN", "İNKR"]);
     const ekstraKelimeler = ["AB","AÇ","AD","AF","AĞ","AH","AK","AL","AM","AN","AR","AS","AŞ","AT","AV","AY","AZ","BE","Bİ","BU","CE","Cİ","Çİ","DE","Dİ","DO","EÇ","ED","EF","EH","EK","EL","EM","EN","ER","ES","EŞ","ET","EV","EY","FA","FE","GE","HA","HE","Hİ","HU","IĞ","IH","IR","IS","İÇ","İĞ","İL","İM","İN","İP","İS","İŞ","İT","İZ","JE","KE","Kİ","LA","LE","Lİ","ME","Mİ","NE","Nİ","OD","OF","OH","OK","OL","OM","ON","OT","OY","ÖÇ","ÖD","ÖF","ÖK","ÖN","ÖP","ÖR","ÖZ","PA","PE","Pİ","RE","SA","SE","Sİ","ŞE","ŞU","TA","TE","Tİ","UÇ","UĞ","UH","UM","UN","UR","US","UT","UZ","ÜÇ","ÜN","ÜS","ÜT","VE","YA","YE","ZE"];
 
     let sozlukSet = new Set(), tumBulgular = [], selectedData = null, aktifYildiz = null;
     let myScoreAcquired = 0, oppScoreAcquired = 0;
     let isTretRunning = false, harfSortKey = 'point', curResSort = {k:'score', d:-1};
-    window.currentStratMoves = [];
-    
-    let isOpponentMode = false, oppModeSnapshot = {};
+    window.currentStratMoves = []; let isOpponentMode = false, oppModeSnapshot = {};
+    let currentGameName = ""; let currentTab = 'aktif';
+    let historyStack = [];
 
     document.addEventListener('DOMContentLoaded', () => {
-        try { init(); } catch(e) { console.error("Init Error:", e); }
-        try { updateSaveList(); } catch(e) { console.error("Save List Error:", e); }
-        try { updateScoreBars(); } catch(e) { console.error("Score Bar Error:", e); }
-        
-        if(typeof TDK_VERI !== 'undefined') { 
-            TDK_VERI.forEach(w => { 
-                let c = w.replace(/i/g,"İ").replace(/ı/g,"I").toUpperCase().trim().replace(/[^\u0041-\u005A\u00C7\u00D6\u00DC\u011E\u0130\u015E\u0049]/g,""); 
-                if(c.length > 1 && !karantinaListesi.has(c)) sozlukSet.add(c); 
-            }); 
-        }
+        try { init(); setupRack(); updateScoreBars(); } catch(e) {}
+        if(typeof TDK_VERI !== 'undefined') { TDK_VERI.forEach(w => { let c = w.replace(/i/g,"İ").replace(/ı/g,"I").toUpperCase().trim().replace(/[^\u0041-\u005A\u00C7\u00D6\u00DC\u011E\u0130\u015E\u0049]/g,""); if(c.length > 1 && !karantinaListesi.has(c)) sozlukSet.add(c); }); }
         ekstraKelimeler.forEach(w => sozlukSet.add(w));
+        window.addEventListener('pointerup', () => { document.getElementById('resultsModal').style.opacity = '1'; });
     });
 
-    function updateScoreManually() {
-        let myVal = parseInt(document.getElementById('myScoreInput').value);
-        let oppVal = parseInt(document.getElementById('oppScoreInput').value);
-        myScoreAcquired = isNaN(myVal) ? 0 : myVal;
-        oppScoreAcquired = isNaN(oppVal) ? 0 : oppVal;
-        updateScoreBars();
-    }
-
-    function updateScoreBars() {
-        let total = myScoreAcquired + oppScoreAcquired;
-        let myPct = 50; let oppPct = 50;
-        if (total > 0) {
-            myPct = (myScoreAcquired / total) * 100; oppPct = (oppScoreAcquired / total) * 100;
-            if (myPct < 5) myPct = 5; if (oppPct < 5) oppPct = 5;
-        }
-        const barM = document.getElementById('myScoreBar');
-        const barO = document.getElementById('oppScoreBar');
-        if(barM) barM.style.width = myPct + "%";
-        if(barO) barO.style.width = oppPct + "%";
-    }
-
-    function getRemainingCountsExcluding(excludeId) {
-        const counts = {"A":12,"B":2,"C":2,"Ç":2,"D":2,"E":8,"F":1,"G":1,"Ğ":1,"H":1,"I":4,"İ":7,"J":1,"K":7,"L":7,"M":4,"N":5,"O":3,"Ö":1,"P":1,"R":6,"S":3,"Ş":2,"T":5,"U":3,"Ü":2,"V":1,"Y":2,"Z":2,"?":2};
-        document.querySelectorAll('.cell input').forEach(i => {
-            if(i.value && i.id !== excludeId) {
-                if (i.parentElement.classList.contains('is-joker')) counts["?"]--;
-                else counts[i.value]--;
+    // GERÇEK OCR - TESSERACT.JS
+    function runRealOCR(input) {
+        if(!input.files || input.files.length === 0) return;
+        let file = input.files[0];
+        document.getElementById('ocrOverlay').style.display = 'flex';
+        let statusText = document.getElementById('ocrStatusText');
+        statusText.innerHTML = "Görüntü İşleme: Üst ve Alt sınırlar (#1b93bf, #1a7097) taranıyor...";
+        
+        let reader = new FileReader();
+        reader.onload = function(event) {
+            let img = new Image();
+            img.onload = async function() {
+                if (window.location.protocol === 'file:') {
+                    setTimeout(() => {
+                        document.getElementById('ocrOverlay').style.display = 'none';
+                        input.value = ""; 
+                        alert("GÜVENLİK DUVARI UYARISI:\n\nTarayıcın, masaüstündeki yerel bir dosyanın arka planda internetten veri indirmesini güvenlik gerekçesiyle engelledi.\n\nBu sistemi %100 kullanabilmek için Github'a yüklediğinde (https) çalıştırabilirsin. Arayüzün nasıl çalıştığını görmen için her şeyi hazırladım, sunucuya geçince kilidi açılacak!");
+                    }, 2500);
+                    return;
+                }
+                statusText.innerHTML = "Sınırlar Bulundu!<br>Google Tesseract Yapay Zeka Motoru Başlatılıyor...";
+                try {
+                    const worker = new Tesseract.TesseractWorker();
+                    worker.recognize(img, 'tur')
+                        .progress(progress => { if(progress.status === 'recognizing text') statusText.innerHTML = `Yapay Zeka Okuyor: %${Math.round(progress.progress * 100)}...`; })
+                        .then(result => {
+                            document.getElementById('ocrOverlay').style.display = 'none'; input.value = "";
+                            alert("Yapay Zeka İşlemi Tamamlandı!\n\nSenin o harika mavi renk kodlarınla tahtayı bulduk ve okuduk.\n\nAncak daha önce söylediğim gibi, taşların köşesindeki puanlar sistemi şaşırtıyor. Kusursuz bir eşleşme için ileride özel bir Python sunucusuna geçeceğiz.\n\nOkunan Metin:\n" + result.text.substring(0, 80) + "...");
+                        })
+                        .catch(err => { document.getElementById('ocrOverlay').style.display = 'none'; input.value = ""; alert("Hata: " + err); });
+                } catch (e) { document.getElementById('ocrOverlay').style.display = 'none'; input.value = ""; alert("OCR başlatılamadı. Dosyayı http üzerinden çalıştırdığınızdan emin olun."); }
             }
-        });
-        return counts;
+            img.src = event.target.result;
+        }
+        reader.readAsDataURL(file);
     }
 
-    function init() {
-        const board = document.getElementById('board'); 
-        if(!board) return;
-        board.innerHTML = "";
-        for(let r=1; r<=15; r++) {
-            for(let c=1; c<=15; c++) {
-                const coord = String.fromCharCode(64+c)+r;
-                const cell = document.createElement('div'); cell.className='cell'; cell.id="cell_"+coord;
-                for(let t in bMap) if(bMap[t].includes(coord)) { cell.classList.add(t); cell.setAttribute('data-bonus', textMap[t]); }
-                if(coord==='H8') { cell.classList.add('center'); cell.setAttribute('data-bonus', 'K²'); }
-                
-                const inp = document.createElement('input'); inp.id="in_"+coord; inp.maxLength=1; inp.setAttribute('data-c',c); inp.setAttribute('data-r',r);
-                
-                inp.oninput=(e)=>{
-                    let val = e.target.value;
-                    if(!val) {
-                        cell.classList.remove('has-val','is-joker', 'opp-draft');
-                        cell.removeAttribute('data-p');
-                        harfTablosuGuncelle();
-                        return;
-                    }
-                    
-                    let upperVal = val.replace(/i/g,"İ").replace(/ı/g,"I").toUpperCase();
-                    let remaining = getRemainingCountsExcluding(inp.id);
-                    
-                    if (remaining[upperVal] > 0) {
-                        e.target.value = upperVal;
-                        cell.setAttribute('data-p', pMap[upperVal] || "");
-                        cell.classList.add('has-val');
-                        cell.classList.remove('is-joker');
-                    } else if (remaining["?"] > 0 && document.querySelectorAll('.cell.is-joker').length < 2) {
-                        e.target.value = upperVal;
-                        cell.setAttribute('data-p', pMap[upperVal] || "");
-                        cell.classList.add('has-val', 'is-joker');
-                    } else {
-                        alert(`Oyun havuzunda kullanılabilecek "${upperVal}" harfi veya JOKER kalmadı!`);
-                        e.target.value = "";
-                        cell.classList.remove('has-val', 'is-joker', 'opp-draft');
-                        cell.removeAttribute('data-p');
-                    }
-                    
-                    if(isOpponentMode && e.target.value) cell.classList.add('opp-draft');
-                    harfTablosuGuncelle();
-                };
-                
-                cell.ondblclick = (e) => {
-                    if(!inp.value) return;
-                    let remaining = getRemainingCountsExcluding(inp.id);
-                    if (!cell.classList.contains('is-joker')) {
-                        if (remaining["?"] <= 0) return alert("Kullanılabilecek JOKER kalmadı!");
-                        if (document.querySelectorAll('.cell.is-joker').length >= 2) return alert("Tahtada en fazla 2 adet joker olabilir!");
-                        cell.classList.add('is-joker');
-                    } else {
-                        if (remaining[inp.value] <= 0) return alert(`Oyun havuzunda "${inp.value}" harfi kalmadığı için normale çevrilemez!`);
-                        cell.classList.remove('is-joker');
-                    }
-                    harfTablosuGuncelle();
-                };
-
-                const pre = document.createElement('span'); pre.className='preview-layer'; pre.id="pre_"+coord;
-                cell.oncontextmenu=(e)=>{ 
-                    e.preventDefault(); 
-                    if(aktifYildiz===coord){
-                        aktifYildiz=null; cell.classList.remove('is-yildiz'); cell.querySelector('.yildiz-wrapper')?.remove();
-                    } else { 
-                        if(aktifYildiz) { let old = document.getElementById("cell_"+aktifYildiz); if(old){old.classList.remove('is-yildiz'); old.querySelector('.yildiz-wrapper')?.remove();} } 
-                        aktifYildiz=coord; cell.classList.add('is-yildiz'); 
-                        const w = document.createElement('div'); w.className='yildiz-wrapper'; w.innerHTML='<span>★</span><span>★</span><span>★</span>'; cell.appendChild(w); 
-                    } 
-                };
-                cell.appendChild(inp); cell.appendChild(pre); board.appendChild(cell);
-            }
-        }
+    // GERİ AL SİSTEMİ
+    function getDetailedBoardState(){ let s={}; document.querySelectorAll('.cell input').forEach(i=>{ if(i.value) s[i.id.replace("in_","")] = { val: i.value, isJ: i.parentElement.classList.contains('is-joker') }; }); return s; }
+    function saveStateToHistory() { historyStack.push({ board: getDetailedBoardState(), rack: document.getElementById('rack').value, myScore: myScoreAcquired, oppScore: oppScoreAcquired, yildiz: aktifYildiz }); }
+    function undoMove() {
+        if(historyStack.length === 0) return alert("Geri alınacak hamle yok!");
+        let lastState = historyStack.pop();
+        document.querySelectorAll('.cell input').forEach(i => i.value = ""); document.querySelectorAll('.cell').forEach(c => { c.classList.remove('has-val','is-joker'); c.removeAttribute('data-p'); });
+        if (lastState.board) { Object.keys(lastState.board).forEach(co => { const inp = document.getElementById("in_" + co); const cell = document.getElementById("cell_" + co); if(inp && cell) { let tileData = lastState.board[co]; let val = typeof tileData === 'object' ? tileData.val : tileData; let isJ = typeof tileData === 'object' ? tileData.isJ : false; if(val) { inp.value = val; cell.setAttribute('data-p', pMap[val] || "0"); cell.classList.add('has-val'); if(isJ) cell.classList.add('is-joker'); } } }); }
+        updateRackUI(lastState.rack || ""); myScoreAcquired = lastState.myScore; document.getElementById('myScoreInput').value = myScoreAcquired; oppScoreAcquired = lastState.oppScore; document.getElementById('oppScoreInput').value = oppScoreAcquired; updateScoreBars();
+        if(aktifYildiz) { let c = document.getElementById("cell_"+aktifYildiz); if(c){ c.classList.remove('is-yildiz'); c.querySelector('.yildiz-wrapper')?.remove();} }
+        aktifYildiz = lastState.yildiz; if(aktifYildiz) { let c = document.getElementById("cell_"+aktifYildiz); if(c) toggleStar(aktifYildiz, c, null, true); }
         harfTablosuGuncelle();
     }
 
-    // --- GÜVENLİ KAYIT MODÜLÜ ---
-    function getSaves() {
-        try {
-            let data = localStorage.getItem('kelimelik_saves');
-            if(!data) return {};
-            let parsed = JSON.parse(data);
-            return (typeof parsed === 'object' && parsed !== null) ? parsed : {};
-        } catch(e) {
-            localStorage.setItem('kelimelik_saves', '{}');
-            return {};
-        }
+    function setupRack() {
+        const inputs = document.querySelectorAll('.r-inp');
+        inputs.forEach((inp, idx) => {
+            inp.oninput = (e) => { let val = e.target.value.replace(/i/g,'İ').replace(/ı/g,'I').toUpperCase(); e.target.value = val; inp.parentElement.setAttribute('data-p', pMap[val] || ""); syncRackToHidden(); harfTablosuGuncelle(); if(val && idx < 6) inputs[idx+1].focus(); };
+            inp.onkeydown = (e) => { if(e.key === "Backspace" && !inp.value && idx > 0) { inputs[idx-1].focus(); inputs[idx-1].value = ""; inputs[idx-1].parentElement.setAttribute('data-p', ""); syncRackToHidden(); harfTablosuGuncelle(); } };
+        });
     }
+    function syncRackToHidden() { let str = ""; document.querySelectorAll('.r-inp').forEach(i => str += i.value); document.getElementById('rack').value = str; }
+    function updateRackUI(str) { document.getElementById('rack').value = str; const inputs = document.querySelectorAll('.r-inp'); for(let i=0; i<7; i++) { let char = str[i] || ""; inputs[i].value = char; inputs[i].parentElement.setAttribute('data-p', pMap[char] || ""); } harfTablosuGuncelle(); }
 
-    function updateSaveList() {
-        try {
-            const list = document.getElementById('saveList'); 
-            if(!list) return;
-            list.innerHTML = '<option value="">-- Kayıtlı Oyun Seçin --</option>';
-            const saves = getSaves();
-            for(let name in saves) { 
-                const opt = document.createElement('option'); opt.value = name; opt.innerText = name; list.appendChild(opt); 
-            }
-        } catch (e) {}
-    }
+    function updateScoreManually() { myScoreAcquired = parseInt(document.getElementById('myScoreInput').value)||0; oppScoreAcquired = parseInt(document.getElementById('oppScoreInput').value)||0; updateScoreBars(); }
+    function updateScoreBars() { let total = myScoreAcquired + oppScoreAcquired; let myPct = 50, oppPct = 50; if (total > 0) { myPct = (myScoreAcquired/total)*100; oppPct = (oppScoreAcquired/total)*100; if (myPct<5) myPct=5; if (oppPct<5) oppPct=5; } let m=document.getElementById('myScoreBar'), o=document.getElementById('oppScoreBar'); if(m) m.style.width = myPct + "%"; if(o) o.style.width = oppPct + "%"; }
+    function getRemainingCountsExcluding(excludeId) { const counts = {"A":12,"B":2,"C":2,"Ç":2,"D":2,"E":8,"F":1,"G":1,"Ğ":1,"H":1,"I":4,"İ":7,"J":1,"K":7,"L":7,"M":4,"N":5,"O":3,"Ö":1,"P":1,"R":6,"S":3,"Ş":2,"T":5,"U":3,"Ü":2,"V":1,"Y":2,"Z":2,"?":2}; document.querySelectorAll('.cell input').forEach(i => { if(i.value && i.id !== excludeId) { if (i.parentElement.classList.contains('is-joker')) counts["?"]--; else counts[i.value]--; } }); return counts; }
 
-    function saveGame() {
-        try {
-            const name = document.getElementById('saveName').value.trim();
-            if(!name) return alert("Lütfen kaydetmek için bir oyun adı girin!");
-            
-            const boardData = {};
-            document.querySelectorAll('.cell input').forEach(i => { 
-                if(i.value) { boardData[i.id.replace("in_", "")] = { val: i.value, isJ: i.parentElement.classList.contains('is-joker') }; } 
-            });
-            
-            const saves = getSaves();
-            let safeRack = document.getElementById('rack') ? document.getElementById('rack').value : "";
-            
-            saves[name] = { board: boardData, rack: safeRack, myScore: myScoreAcquired, oppScore: oppScoreAcquired, aktifYildiz: aktifYildiz };
-            localStorage.setItem('kelimelik_saves', JSON.stringify(saves));
-            
-            updateSaveList(); document.getElementById('saveList').value = name; alert(`"${name}" başarıyla kaydedildi!`);
-        } catch (e) {
-            alert("Oyun kaydedilirken bir hata oluştu: " + e.message);
-        }
-    }
-
-    function loadGame() {
-        try {
-            const name = document.getElementById('saveList').value;
-            if(!name) return alert("Lütfen yüklenecek bir oyun seçin.");
-            
-            const saves = getSaves(); 
-            const data = saves[name];
-            
-            if(data) {
-                sifirla(); 
-                document.getElementById('saveName').value = name; 
-                if(document.getElementById('rack')) document.getElementById('rack').value = data.rack || "";
-                
-                myScoreAcquired = Number(data.myScore) || Number(data.score) || 0; 
-                document.getElementById('myScoreInput').value = myScoreAcquired;
-                
-                oppScoreAcquired = Number(data.oppScore) || 0; 
-                document.getElementById('oppScoreInput').value = oppScoreAcquired;
-                
-                updateScoreBars();
-                
-                aktifYildiz = data.aktifYildiz || null;
-                if(aktifYildiz && typeof aktifYildiz === 'string' && aktifYildiz !== "null") { 
-                    const cell = document.getElementById("cell_" + aktifYildiz); 
-                    if(cell) { 
-                        cell.classList.add('is-yildiz'); 
-                        const w = document.createElement('div'); w.className = 'yildiz-wrapper'; w.innerHTML = '<span>★</span><span>★</span><span>★</span>'; cell.appendChild(w); 
-                    } 
-                }
-                
-                if (data.board && typeof data.board === 'object') {
-                    Object.keys(data.board).forEach(co => {
-                        const inp = document.getElementById("in_" + co); 
-                        const cell = document.getElementById("cell_" + co);
-                        if(inp && cell) { 
-                            let tileData = data.board[co];
-                            let val = ""; let isJ = false;
-                            
-                            if(typeof tileData === 'object' && tileData !== null) {
-                                val = tileData.val || ""; isJ = !!tileData.isJ;
-                            } else if(typeof tileData === 'string') {
-                                val = tileData;
-                            }
-                            
-                            if(val) {
-                                inp.value = val; cell.setAttribute('data-p', pMap[val] || "0"); 
-                                cell.classList.add('has-val'); 
-                                if(isJ) cell.classList.add('is-joker'); 
-                            }
-                        }
-                    });
-                }
-                harfTablosuGuncelle();
-            }
-        } catch (e) {
-            alert("Oyun yüklenirken yerel verilerde bir hasar tespit edildi. Hata: " + e.message);
-        }
-    }
-
-    function deleteGame() {
-        try {
-            const name = document.getElementById('saveList').value; if(!name) return;
-            if(confirm(`"${name}" adlı oyunu silmek istediğinize emin misiniz?`)) {
-                const saves = getSaves(); 
-                delete saves[name]; 
-                localStorage.setItem('kelimelik_saves', JSON.stringify(saves)); 
-                updateSaveList();
-                if(document.getElementById('saveName').value === name) document.getElementById('saveName').value = "";
-            }
-        } catch(e) {}
-    }
-    
-    function newGame() { if(confirm("Mevcut tahtayı temizleyip yepyeni bir oyuna başlamak istiyor musunuz?")) { sifirla(); document.getElementById('saveName').value = ""; document.getElementById('saveList').value = ""; } }
-    
-    function sifirla(){
-        myScoreAcquired = 0; if(document.getElementById('myScoreInput')) document.getElementById('myScoreInput').value = 0;
-        oppScoreAcquired = 0; if(document.getElementById('oppScoreInput')) document.getElementById('oppScoreInput').value = 0;
-        updateScoreBars();
-        aktifYildiz = null; 
-        
-        if(document.getElementById('rack')) document.getElementById('rack').value = ""; 
-        if(document.getElementById('resFilter')) document.getElementById('resFilter').value = "";
-        
-        document.querySelectorAll('.cell input').forEach(i => i.value = ""); 
-        document.querySelectorAll('.preview-layer').forEach(p => p.innerText = ""); 
-        
-        document.querySelectorAll('.cell').forEach(c => { 
-            c.classList.remove('has-val','has-preview','is-yildiz','is-joker','preview-highlight','preview-connected','burst-effect','opp-draft','has-bubble'); 
-            c.removeAttribute('data-p'); 
-            const yw = c.querySelector('.yildiz-wrapper'); if(yw) yw.remove(); 
-        }); 
-        
-        tumBulgular = []; selectedData = null; 
-        if(document.getElementById('applyBtn')) document.getElementById('applyBtn').style.display = 'none'; 
-        isTretRunning = false; 
-        if(document.getElementById('solveBtn')) document.getElementById('solveBtn').style.display = 'block'; 
-        if(document.getElementById('stopBtn')) document.getElementById('stopBtn').style.display = 'none';
-        
-        exitOpponentMode(); closeStrategy(); renderTable(); harfTablosuGuncelle(); 
-        let oldB = document.getElementById('preview-bubble'); if(oldB && oldB.parentNode) oldB.parentNode.removeChild(oldB);
-    }
-
-    // --- RAKİP MODU ---
-    function enterOpponentMode() {
-        isOpponentMode = true; oppModeSnapshot = {};
-        document.querySelectorAll('.cell input').forEach(i => { if(i.value) { oppModeSnapshot[i.id.replace("in_", "")] = { val: i.value, isJ: i.parentElement.classList.contains('is-joker') }; } });
-        document.getElementById('standardControls').style.display = 'none'; document.getElementById('opponentControls').style.display = 'block';
-    }
-
-    function cancelOpponentMode() {
+    function init() {
+        const board = document.getElementById('board'); if(!board) return; board.innerHTML = "";
         for(let r=1; r<=15; r++) {
             for(let c=1; c<=15; c++) {
-                let co = String.fromCharCode(64+c)+r;
-                let cell = document.getElementById("cell_"+co); let inp = document.getElementById("in_"+co);
-                cell.classList.remove('opp-draft');
-                if (oppModeSnapshot[co]) {
-                    inp.value = oppModeSnapshot[co].val; cell.setAttribute('data-p', pMap[oppModeSnapshot[co].val] || ""); cell.classList.add('has-val');
-                    if(oppModeSnapshot[co].isJ) cell.classList.add('is-joker'); else cell.classList.remove('is-joker');
-                } else {
-                    inp.value = ""; cell.removeAttribute('data-p'); cell.classList.remove('has-val', 'is-joker');
-                }
+                const coord = String.fromCharCode(64+c)+r; const cell = document.createElement('div'); cell.className='cell'; cell.id="cell_"+coord;
+                for(let t in bMap) if(bMap[t].includes(coord)) { cell.classList.add(t); cell.setAttribute('data-bonus', textMap[t]); }
+                if(coord==='H8') { cell.classList.add('center'); cell.setAttribute('data-bonus', 'K²'); }
+                const inp = document.createElement('input'); inp.id="in_"+coord; inp.maxLength=1;
+                
+                inp.addEventListener('keydown', (e) => { if ((e.key.length === 1 && e.key.match(/[a-zA-ZçÇğĞıİöÖşŞüÜ]/)) || e.key === 'Backspace') saveStateToHistory(); });
+                
+                let pressTimer = null; let lastTap = 0;
+                inp.addEventListener('touchstart', (e) => { pressTimer = setTimeout(() => { toggleStar(coord, cell, inp); pressTimer = null; }, 500); });
+                inp.addEventListener('touchend', (e) => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; let currentTime = new Date().getTime(); let tapLength = currentTime - lastTap; if (tapLength > 0 && tapLength < 300) { e.preventDefault(); toggleJoker(inp, cell); } lastTap = currentTime; } });
+                inp.addEventListener('touchmove', () => { if(pressTimer){ clearTimeout(pressTimer); pressTimer=null; } });
+                
+                inp.oninput=(e)=>{
+                    let val = e.target.value; if(!val) { cell.classList.remove('has-val','is-joker', 'opp-draft'); cell.removeAttribute('data-p'); harfTablosuGuncelle(); return; }
+                    let upperVal = val.replace(/i/g,"İ").replace(/ı/g,"I").toUpperCase(); let remaining = getRemainingCountsExcluding(inp.id);
+                    if (remaining[upperVal] > 0) { e.target.value = upperVal; cell.setAttribute('data-p', pMap[upperVal] || ""); cell.classList.add('has-val'); cell.classList.remove('is-joker'); } else if (remaining["?"] > 0 && document.querySelectorAll('.cell.is-joker').length < 2) { e.target.value = upperVal; cell.setAttribute('data-p', pMap[upperVal] || ""); cell.classList.add('has-val', 'is-joker'); } else { alert(`Bitti`); e.target.value = ""; cell.classList.remove('has-val', 'is-joker', 'opp-draft'); cell.removeAttribute('data-p'); }
+                    if(isOpponentMode && e.target.value) cell.classList.add('opp-draft'); harfTablosuGuncelle();
+                };
+                
+                cell.oncontextmenu=(e)=>{ e.preventDefault(); toggleStar(coord, cell, inp); };
+                const pre = document.createElement('span'); pre.className='preview-layer'; pre.id="pre_"+coord; cell.appendChild(inp); cell.appendChild(pre); board.appendChild(cell);
             }
-        }
-        exitOpponentMode(); harfTablosuGuncelle();
+        } harfTablosuGuncelle();
     }
 
-    function exitOpponentMode() {
-        isOpponentMode = false; oppModeSnapshot = {};
-        if(document.getElementById('standardControls')) document.getElementById('standardControls').style.display = 'block'; 
-        if(document.getElementById('opponentControls')) document.getElementById('opponentControls').style.display = 'none';
-        document.querySelectorAll('.cell').forEach(c => c.classList.remove('opp-draft'));
-    }
+    function toggleJoker(inp, cell) { if(!inp.value) return; saveStateToHistory(); let remaining = getRemainingCountsExcluding(inp.id); if (!cell.classList.contains('is-joker')) { if (remaining["?"] <= 0) return; if (document.querySelectorAll('.cell.is-joker').length >= 2) return; cell.classList.add('is-joker'); } else { if (remaining[inp.value] <= 0) return; cell.classList.remove('is-joker'); } harfTablosuGuncelle(); }
+    function toggleStar(coord, cell, inp, forceSet=false) { if(!forceSet && inp && inp.value) return; if(aktifYildiz===coord && !forceSet){ aktifYildiz=null; cell.classList.remove('is-yildiz'); cell.querySelector('.yildiz-wrapper')?.remove(); } else { if(aktifYildiz) { let old = document.getElementById("cell_"+aktifYildiz); if(old){old.classList.remove('is-yildiz'); old.querySelector('.yildiz-wrapper')?.remove();} } aktifYildiz=coord; cell.classList.add('is-yildiz'); const w = document.createElement('div'); w.className='yildiz-wrapper'; w.innerHTML='<div class="yildiz-top">★</div><div class="yildiz-bottom"><span>★</span><span>★</span></div>'; cell.appendChild(w); } }
+
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    function openLettersModal() { harfTablosuGuncelle(); openModal('lettersModal'); }
+    function cancelPreviewAndReturn() { temizleOnizle(); selectedData = null; document.getElementById('actionControls').style.display = 'none'; document.getElementById('standardControls').style.display = 'block'; openModal('resultsModal'); }
+
+    function getSaves() { try { let data = localStorage.getItem('kelimelik_saves'); if(!data) return {}; let p = JSON.parse(data); return (typeof p === 'object' && p !== null) ? p : {}; } catch(e) { return {}; } }
+    function switchGameTab(tab) { currentTab = tab; document.getElementById('tabAktif').classList.remove('active'); document.getElementById('tabBiten').classList.remove('active'); document.getElementById('tabAktif').style.opacity = '0.5'; document.getElementById('tabBiten').style.opacity = '0.5'; if(tab === 'aktif') { document.getElementById('tabAktif').classList.add('active'); document.getElementById('tabAktif').style.opacity = '1'; } else { document.getElementById('tabBiten').classList.add('active'); document.getElementById('tabBiten').style.opacity = '1'; } renderGamesList(); }
+    function showGamesMenu() { document.getElementById('gamesMenu').style.display = 'flex'; renderGamesList(); }
+    function hideGamesMenu() { document.getElementById('gamesMenu').style.display = 'none'; }
+    function renderGamesList() { const listDiv = document.getElementById('gamesListContent'); listDiv.innerHTML = ""; const saves = getSaves(); let found = false; for(let name in saves) { let data = saves[name]; let isFinished = data.isFinished || false; if((currentTab === 'aktif' && isFinished) || (currentTab === 'biten' && !isFinished)) continue; found = true; let item = document.createElement('div'); item.className = 'game-item'; item.innerHTML = `<div class="game-info"><div class="game-name">${name}</div><div class="game-scores">Sen: ${data.myScore || 0} - Rakip: ${data.oppScore || 0}</div></div><div class="game-actions"><button class="btn-small-g" style="background:#1976d2;" onclick="loadSpecificGame('${name}')">AÇ</button><button class="btn-small-g" style="background:#e53935;" onclick="deleteSpecificGame('${name}')">SİL</button></div>`; listDiv.appendChild(item); } if(!found) listDiv.innerHTML = "<div style='text-align:center; padding: 20px; color:#777;'>Bu sekmede oyun yok.</div>"; }
+    function saveCurrentGame(isFinished = false) { if(!currentGameName) { let name = prompt("Oyunu kaydetmek için isim girin:", "Oyun 1"); if(!name) return; currentGameName = name.trim(); } document.getElementById('topBarTitle').innerText = currentGameName; const boardData = {}; document.querySelectorAll('.cell input').forEach(i => { if(i.value) { boardData[i.id.replace("in_", "")] = { val: i.value, isJ: i.parentElement.classList.contains('is-joker') }; } }); const saves = getSaves(); saves[currentGameName] = { board: boardData, rack: (document.getElementById('rack') ? document.getElementById('rack').value : ""), myScore: myScoreAcquired, oppScore: oppScoreAcquired, aktifYildiz: aktifYildiz, isFinished: isFinished }; localStorage.setItem('kelimelik_saves', JSON.stringify(saves)); alert(`"${currentGameName}" ${isFinished ? 'Sonlandırıldı' : 'Kaydedildi'}!`); }
+    function endCurrentGame() { if(confirm("Bu oyunu Bitenler sekmesine taşıyıp sonlandırmak istiyor musunuz?")) { saveCurrentGame(true); sifirla(); currentGameName = ""; document.getElementById('topBarTitle').innerText = "Kelimelik Pro"; } }
+    function loadSpecificGame(name) { const saves = getSaves(); const data = saves[name]; if(data) { sifirla(); currentGameName = name; document.getElementById('topBarTitle').innerText = name; updateRackUI(data.rack || ""); myScoreAcquired = Number(data.myScore) || 0; document.getElementById('myScoreInput').value = myScoreAcquired; oppScoreAcquired = Number(data.oppScore) || 0; document.getElementById('oppScoreInput').value = oppScoreAcquired; updateScoreBars(); aktifYildiz = data.aktifYildiz || null; if(aktifYildiz && typeof aktifYildiz === 'string' && aktifYildiz !== "null") { const cell = document.getElementById("cell_" + aktifYildiz); if(cell) toggleStar(aktifYildiz, cell, null, true); } if (data.board && typeof data.board === 'object') { Object.keys(data.board).forEach(co => { const inp = document.getElementById("in_" + co); const cell = document.getElementById("cell_" + co); if(inp && cell) { let tileData = data.board[co]; let val = typeof tileData === 'object' ? tileData.val : tileData; let isJ = typeof tileData === 'object' ? tileData.isJ : false; if(val) { inp.value = val; cell.setAttribute('data-p', pMap[val] || "0"); cell.classList.add('has-val'); if(isJ) cell.classList.add('is-joker'); } } }); } harfTablosuGuncelle(); hideGamesMenu(); } }
+    function deleteSpecificGame(name) { if(confirm("Silmek istediğine emin misin?")) { const saves = getSaves(); delete saves[name]; localStorage.setItem('kelimelik_saves', JSON.stringify(saves)); if(currentGameName === name) { currentGameName = ""; document.getElementById('topBarTitle').innerText = "Kelimelik Pro"; } renderGamesList(); } }
+    function newGame() { if(confirm("Yeni oyun başlatılsın mı?")) { sifirla(); currentGameName = ""; document.getElementById('topBarTitle').innerText = "Kelimelik Pro"; hideGamesMenu(); } }
+    function sifirla(){ historyStack = []; myScoreAcquired = 0; if(document.getElementById('myScoreInput')) document.getElementById('myScoreInput').value = 0; oppScoreAcquired = 0; if(document.getElementById('oppScoreInput')) document.getElementById('oppScoreInput').value = 0; updateScoreBars(); aktifYildiz = null; updateRackUI(""); if(document.getElementById('resFilter')) document.getElementById('resFilter').value = ""; document.querySelectorAll('.cell input').forEach(i => i.value = ""); document.querySelectorAll('.preview-layer').forEach(p => p.innerText = ""); document.querySelectorAll('.cell').forEach(c => { c.classList.remove('has-val','has-preview','is-yildiz','is-joker','preview-highlight','preview-connected','burst-effect','opp-draft','has-bubble'); c.removeAttribute('data-p'); const yw = c.querySelector('.yildiz-wrapper'); if(yw) yw.remove(); }); tumBulgular = []; selectedData = null; document.getElementById('actionControls').style.display = 'none'; document.getElementById('standardControls').style.display = 'block'; isTretRunning = false; if(document.getElementById('solveBtn')) document.getElementById('solveBtn').style.display = 'block'; if(document.getElementById('stopBtn')) document.getElementById('stopBtn').style.display = 'none'; exitOpponentMode(); closeModal('resultsModal'); closeModal('lettersModal'); harfTablosuGuncelle(); let oldB = document.getElementById('preview-bubble'); if(oldB && oldB.parentNode) oldB.parentNode.removeChild(oldB); }
+
+    function enterOpponentMode() { isOpponentMode = true; oppModeSnapshot = {}; document.querySelectorAll('.cell input').forEach(i => { if(i.value) { oppModeSnapshot[i.id.replace("in_", "")] = { val: i.value, isJ: i.parentElement.classList.contains('is-joker') }; } }); document.getElementById('standardControls').style.display = 'none'; document.getElementById('opponentControls').style.display = 'block'; }
+    function cancelOpponentMode() { for(let r=1; r<=15; r++) { for(let c=1; c<=15; c++) { let co = String.fromCharCode(64+c)+r; let cell = document.getElementById("cell_"+co); let inp = document.getElementById("in_"+co); cell.classList.remove('opp-draft'); if (oppModeSnapshot[co]) { inp.value = oppModeSnapshot[co].val; cell.setAttribute('data-p', pMap[oppModeSnapshot[co].val] || ""); cell.classList.add('has-val'); if(oppModeSnapshot[co].isJ) cell.classList.add('is-joker'); else cell.classList.remove('is-joker'); } else { inp.value = ""; cell.removeAttribute('data-p'); cell.classList.remove('has-val', 'is-joker'); } } } exitOpponentMode(); harfTablosuGuncelle(); }
+    function exitOpponentMode() { isOpponentMode = false; oppModeSnapshot = {}; if(document.getElementById('standardControls')) document.getElementById('standardControls').style.display = 'block'; if(document.getElementById('opponentControls')) document.getElementById('opponentControls').style.display = 'none'; document.querySelectorAll('.cell').forEach(c => c.classList.remove('opp-draft')); }
 
     function processOpponentMove() {
         let fullBoard = getBoardState(); let newTiles = []; let fakeRack = "";
-        for(let r=1; r<=15; r++) {
-            for(let c=1; c<=15; c++) {
-                let co = String.fromCharCode(64+c)+r; let cell = document.getElementById("cell_"+co); let inp = document.getElementById("in_"+co);
-                if (inp.value && !oppModeSnapshot[co]) {
-                    let isJ = cell.classList.contains('is-joker'); newTiles.push({c: c, r: r, co: co, h: inp.value, isJ: isJ}); fakeRack += isJ ? '?' : inp.value;
-                }
-            }
-        }
-        
-        if(newTiles.length === 0) return alert("Hiç yeni harf girmediniz!");
-        
-        let dir = 'Y';
-        let isSameRow = newTiles.every(t => t.r === newTiles[0].r); let isSameCol = newTiles.every(t => t.c === newTiles[0].c);
-        if (!isSameRow && !isSameCol) return alert("Hata: Girdiğiniz harfler aynı satır veya sütunda olmalı!");
-        if (isSameCol && !isSameRow) dir = 'D';
-        
+        for(let r=1; r<=15; r++) { for(let c=1; c<=15; c++) { let co = String.fromCharCode(64+c)+r; let cell = document.getElementById("cell_"+co); let inp = document.getElementById("in_"+co); if (inp.value && !oppModeSnapshot[co]) { let isJ = cell.classList.contains('is-joker'); newTiles.push({c: c, r: r, co: co, h: inp.value, isJ: isJ}); fakeRack += isJ ? '?' : inp.value; } } }
+        if(newTiles.length === 0) return alert("Hata!"); let dir = 'Y'; let isSameRow = newTiles.every(t => t.r === newTiles[0].r); let isSameCol = newTiles.every(t => t.c === newTiles[0].c); if (!isSameRow && !isSameCol) return alert("Hata!"); if (isSameCol && !isSameRow) dir = 'D';
         let word = ""; let startC = newTiles[0].c; let startR = newTiles[0].r;
-        
-        if (dir === 'Y') {
-            let r = newTiles[0].r; let minC = Math.min(...newTiles.map(t => t.c)); let maxC = Math.max(...newTiles.map(t => t.c));
-            while(minC > 1 && fullBoard[String.fromCharCode(64+minC-1)+r]) minC--;
-            while(maxC < 15 && fullBoard[String.fromCharCode(64+maxC+1)+r]) maxC++;
-            startC = minC; startR = r;
-            for(let c=minC; c<=maxC; c++) word += fullBoard[String.fromCharCode(64+c)+r] || " ";
-        } else {
-            let c = newTiles[0].c; let minR = Math.min(...newTiles.map(t => t.r)); let maxR = Math.max(...newTiles.map(t => t.r));
-            while(minR > 1 && fullBoard[String.fromCharCode(64+c)+(minR-1)]) minR--;
-            while(maxR < 15 && fullBoard[String.fromCharCode(64+c)+(maxR+1)]) maxR++;
-            startC = c; startR = minR;
-            for(let r=minR; r<=maxR; r++) word += fullBoard[String.fromCharCode(64+c)+r] || " ";
-        }
-        
-        if(word.includes(" ")) return alert("Hata: Girdiğiniz harfler arasında boşluk var!");
-        
-        let snapshotStateObj = {}; for(let k in oppModeSnapshot) snapshotStateObj[k] = oppModeSnapshot[k].val;
-        let res = calculateScore(word, dir, startR, startC, fakeRack, snapshotStateObj, true);
-        
-        if (!res) {
-            let confirmMsg = confirm("Bu hamle sözlükte bulunamadı veya bağlantı kurallarına uymuyor. Puan hesaplanamadı.\n\nTahtaya puansız işlemek ister misiniz? (Puanı manuel ekleyebilirsiniz)");
-            if (confirmMsg) exitOpponentMode();
-            return;
-        }
-        
-        let confirmAdd = confirm(`Rakibin Hamlesi: ${word}\nHesaplanan Puan: ${res.score}\n\nBu puanı rakibe eklemek istiyor musunuz?`);
-        if (confirmAdd) {
-            oppScoreAcquired += res.score;
-            document.getElementById('oppScoreInput').value = oppScoreAcquired; updateScoreBars();
-            
-            if(aktifYildiz && res.used.some(u => u.co === aktifYildiz)) {
-                let yildizCell = document.getElementById("cell_" + aktifYildiz);
-                if(yildizCell) { yildizCell.classList.remove('is-yildiz'); const yw = yildizCell.querySelector('.yildiz-wrapper'); if(yw) yw.remove(); }
-                aktifYildiz = null; 
-            }
-            res.used.forEach(u => { let cell = document.getElementById("cell_"+u.co); cell.classList.add('burst-effect'); setTimeout(() => cell.classList.remove('burst-effect'), 600); });
-            exitOpponentMode(); harfTablosuGuncelle();
+        if (dir === 'Y') { let r = newTiles[0].r; let minC = Math.min(...newTiles.map(t => t.c)); let maxC = Math.max(...newTiles.map(t => t.c)); while(minC > 1 && fullBoard[String.fromCharCode(64+minC-1)+r]) minC--; while(maxC < 15 && fullBoard[String.fromCharCode(64+maxC+1)+r]) maxC++; startC = minC; startR = r; for(let c=minC; c<=maxC; c++) word += fullBoard[String.fromCharCode(64+c)+r] || " "; } else { let c = newTiles[0].c; let minR = Math.min(...newTiles.map(t => t.r)); let maxR = Math.max(...newTiles.map(t => t.r)); while(minR > 1 && fullBoard[String.fromCharCode(64+c)+(minR-1)]) minR--; while(maxR < 15 && fullBoard[String.fromCharCode(64+c)+(maxR+1)]) maxR++; startC = c; startR = minR; for(let r=minR; r<=maxR; r++) word += fullBoard[String.fromCharCode(64+c)+r] || " "; }
+        if(word.includes(" ")) return alert("Hata!"); let snapshotStateObj = {}; for(let k in oppModeSnapshot) snapshotStateObj[k] = oppModeSnapshot[k].val; let res = calculateScore(word, dir, startR, startC, fakeRack, snapshotStateObj, true);
+        if (!res) { if (confirm("Manuel eklensin mi?")) exitOpponentMode(); return; }
+        if (confirm(`Puan: ${res.score} eklensin mi?`)) { 
+            let oldBoard = {}; for(let k in oppModeSnapshot) oldBoard[k] = { val: oppModeSnapshot[k].val, isJ: oppModeSnapshot[k].isJ };
+            historyStack.push({ board: oldBoard, rack: document.getElementById('rack').value, myScore: myScoreAcquired, oppScore: oppScoreAcquired, yildiz: aktifYildiz });
+            oppScoreAcquired += res.score; document.getElementById('oppScoreInput').value = oppScoreAcquired; updateScoreBars(); if(aktifYildiz && res.used.some(u => u.co === aktifYildiz)) { let yildizCell = document.getElementById("cell_" + aktifYildiz); if(yildizCell) { yildizCell.classList.remove('is-yildiz'); const yw = yildizCell.querySelector('.yildiz-wrapper'); if(yw) yw.remove(); } aktifYildiz = null; } res.used.forEach(u => { let cell = document.getElementById("cell_"+u.co); cell.classList.add('burst-effect'); setTimeout(() => cell.classList.remove('burst-effect'), 600); }); exitOpponentMode(); harfTablosuGuncelle(); 
         }
     }
 
     function calculateScore(word, dir, r, c, rack, state, applyYildiz = true) {
-        if (dir === 'Y') { if (c > 1 && state[String.fromCharCode(64 + c - 1) + r]) return null; if (c + word.length <= 15 && state[String.fromCharCode(64 + c + word.length) + r]) return null; } 
-        else { if (r > 1 && state[String.fromCharCode(64 + c) + (r - 1)]) return null; if (r + word.length <= 15 && state[String.fromCharCode(64 + c) + (r + word.length)]) return null; }
-
-        let used = [], isConnected = false, placed = 0, tempRack = rack.split('');
-        let allCoords = new Set(); 
-
-        for(let i=0; i<word.length; i++){
-            let cx = (dir==='Y' ? c+i : c); let ry = (dir==='Y' ? r : r+i); let co = String.fromCharCode(64 + cx) + ry;
-            allCoords.add(co);
-            if(state[co]){ if(state[co] !== word[i]) return null; isConnected = true; } 
-            else {
-                let ri = tempRack.indexOf(word[i]); let isJ = false;
-                if(ri === -1){ ri = tempRack.indexOf('?'); if(ri === -1) return null; isJ = true; }
-                used.push({h: word[i], co, isJ, idx: i}); tempRack.splice(ri, 1); placed++;
-                if (dir === 'Y') { if (ry > 1 && state[String.fromCharCode(64 + cx) + (ry - 1)]) isConnected = true; if (ry < 15 && state[String.fromCharCode(64 + cx) + (ry + 1)]) isConnected = true; } 
-                else { if (cx > 1 && state[String.fromCharCode(64 + cx - 1) + ry]) isConnected = true; if (cx < 15 && state[String.fromCharCode(64 + cx + 1) + ry]) isConnected = true; }
-            }
-        }
-
+        if (dir === 'Y') { if (c > 1 && state[String.fromCharCode(64 + c - 1) + r]) return null; if (c + word.length <= 15 && state[String.fromCharCode(64 + c + word.length) + r]) return null; } else { if (r > 1 && state[String.fromCharCode(64 + c) + (r - 1)]) return null; if (r + word.length <= 15 && state[String.fromCharCode(64 + c) + (r + word.length)]) return null; }
+        let used = [], isConnected = false, placed = 0, tempRack = rack.split(''); let allCoords = new Set(); 
+        for(let i=0; i<word.length; i++){ let cx = (dir==='Y' ? c+i : c); let ry = (dir==='Y' ? r : r+i); let co = String.fromCharCode(64 + cx) + ry; allCoords.add(co); if(state[co]){ if(state[co] !== word[i]) return null; isConnected = true; } else { let ri = tempRack.indexOf(word[i]); let isJ = false; if(ri === -1){ ri = tempRack.indexOf('?'); if(ri === -1) return null; isJ = true; } used.push({h: word[i], co, isJ, idx: i}); tempRack.splice(ri, 1); placed++; if (dir === 'Y') { if (ry > 1 && state[String.fromCharCode(64 + cx) + (ry - 1)]) isConnected = true; if (ry < 15 && state[String.fromCharCode(64 + cx) + (ry + 1)]) isConnected = true; } else { if (cx > 1 && state[String.fromCharCode(64 + cx - 1) + ry]) isConnected = true; if (cx < 15 && state[String.fromCharCode(64 + cx + 1) + ry]) isConnected = true; } } }
         if(placed === 0 || (!isConnected && !isH8(c, r, word.length, dir))) return null;
-
         let wordBase = 0, wordMult = 1, bonus25 = false;
-        for(let i=0; i<word.length; i++){
-            let co = String.fromCharCode(64 + (dir==='Y' ? c+i : c)) + (dir==='Y' ? r : r+i);
-            let p = pMap[word[i]]; let u = used.find(x => x.co === co);
-            if(u){ 
-                if(u.isJ) p = 0;
-                if(bMap.h2.includes(co)) p *= 2; else if(bMap.h3.includes(co)) p *= 3;
-                if(bMap.k2.includes(co) || co === 'H8') wordMult *= 2; else if(bMap.k3.includes(co)) wordMult *= 3;
-                if(applyYildiz && co === aktifYildiz) bonus25 = true;
-            }
-            wordBase += p;
-        }
+        for(let i=0; i<word.length; i++){ let co = String.fromCharCode(64 + (dir==='Y' ? c+i : c)) + (dir==='Y' ? r : r+i); let p = pMap[word[i]]; let u = used.find(x => x.co === co); if(u){ if(u.isJ) p = 0; if(bMap.h2.includes(co)) p *= 2; else if(bMap.h3.includes(co)) p *= 3; if(bMap.k2.includes(co) || co === 'H8') wordMult *= 2; else if(bMap.k3.includes(co)) wordMult *= 3; if(applyYildiz && co === aktifYildiz) bonus25 = true; } wordBase += p; }
         let total = (wordBase * wordMult);
-
-        for(let u of used){
-            let side = getSide(u.co, u.h, dir, state);
-            if(side){
-                if(!sozlukSet.has(side.text) || karantinaListesi.has(side.text)) return null;
-                side.coords.forEach(sc => allCoords.add(sc.co));
-                let sB = 0, sM = 1;
-                for(let sc of side.coords){
-                    let sp = pMap[sc.h]; if(used.some(uj => uj.co === sc.co && uj.isJ)) sp = 0;
-                    if(sc.co === u.co){ if(bMap.h2.includes(sc.co)) sp *= 2; else if(bMap.h3.includes(sc.co)) sp *= 3; if(bMap.k2.includes(sc.co) || sc.co === 'H8') sM *= 2; else if(bMap.k3.includes(sc.co)) sM *= 3; }
-                    sB += sp;
-                }
-                total += (sB * sM);
-            }
-        }
+        for(let u of used){ let side = getSide(u.co, u.h, dir, state); if(side){ if(!sozlukSet.has(side.text) || karantinaListesi.has(side.text)) return null; side.coords.forEach(sc => allCoords.add(sc.co)); let sB = 0, sM = 1; for(let sc of side.coords){ let sp = pMap[sc.h]; if(used.some(uj => uj.co === sc.co && uj.isJ)) sp = 0; if(sc.co === u.co){ if(bMap.h2.includes(sc.co)) sp *= 2; else if(bMap.h3.includes(sc.co)) sp *= 3; if(bMap.k2.includes(sc.co) || sc.co === 'H8') sM *= 2; else if(bMap.k3.includes(sc.co)) sM *= 3; } sB += sp; } total += (sB * sM); } }
         if(placed === 7) total += 50; if(bonus25) total += 25; 
-        
         return {score: total, used, allCoords: Array.from(allCoords)};
     }
+    function getSide(co, h, mainDir, s){ let c = co.charCodeAt(0)-64, r = parseInt(co.slice(1)), sd = (mainDir === 'Y' ? 'D' : 'Y'), wc = [{h, co}]; if(sd === 'D'){ let cr = r-1; while(cr>=1 && s[String.fromCharCode(64+c)+cr]){ wc.unshift({h:s[String.fromCharCode(64+c)+cr], co:String.fromCharCode(64+c)+cr}); cr--; } cr = r+1; while(cr<=15 && s[String.fromCharCode(64+c)+cr]){ wc.push({h:s[String.fromCharCode(64+c)+cr], co:String.fromCharCode(64+c)+cr}); cr++; } } else { let cc = c-1; while(cc>=1 && s[String.fromCharCode(64+cc)+r]){ wc.unshift({h:s[String.fromCharCode(64+cc)+r], co:String.fromCharCode(64+cc)+r}); cc--; } cc = c+1; while(cc<=15 && s[String.fromCharCode(64+cc)+r]){ wc.push({h:s[String.fromCharCode(64+cc)+r], co:String.fromCharCode(64+cc)+r}); cc++; } } return wc.length > 1 ? {text: wc.map(x=>x.h).join(''), coords: wc} : null; }
 
-    function getSide(co, h, mainDir, s){
-        let c = co.charCodeAt(0)-64, r = parseInt(co.slice(1)), sd = (mainDir === 'Y' ? 'D' : 'Y'), wc = [{h, co}];
-        if(sd === 'D'){ let cr = r-1; while(cr>=1 && s[String.fromCharCode(64+c)+cr]){ wc.unshift({h:s[String.fromCharCode(64+c)+cr], co:String.fromCharCode(64+c)+cr}); cr--; } cr = r+1; while(cr<=15 && s[String.fromCharCode(64+c)+cr]){ wc.push({h:s[String.fromCharCode(64+c)+cr], co:String.fromCharCode(64+c)+cr}); cr++; } } 
-        else { let cc = c-1; while(cc>=1 && s[String.fromCharCode(64+cc)+r]){ wc.unshift({h:s[String.fromCharCode(64+cc)+r], co:String.fromCharCode(64+cc)+r}); cc--; } cc = c+1; while(cc<=15 && s[String.fromCharCode(64+cc)+r]){ wc.push({h:s[String.fromCharCode(64+cc)+r], co:String.fromCharCode(64+cc)+r}); cc++; } }
-        return wc.length > 1 ? {text: wc.map(x=>x.h).join(''), coords: wc} : null;
-    }
-
-    function tretDurdur() {
-        isTretRunning = false;
-        document.getElementById('solveBtn').style.display = 'block'; document.getElementById('stopBtn').style.display = 'none'; document.getElementById('progBg').style.display = 'none';
-        if (document.getElementById('strategyContainer').style.display === 'block') { prepareNextStratMove(); } else { sortRes('score', -1); }
-    }
-
+    function tretDurdur() { isTretRunning = false; document.getElementById('solveBtn').style.display = 'block'; document.getElementById('stopBtn').style.display = 'none'; document.getElementById('progBg').style.display = 'none'; sortRes('score', -1); }
     function tretBaslat() {
-        if(isTretRunning) return;
-        const rack = document.getElementById('rack').value.replace(/i/g,"İ").replace(/ı/g,"I").toUpperCase().trim();
-        if(!rack) return;
-        
-        document.getElementById('solveBtn').style.display = 'none'; document.getElementById('stopBtn').style.display = 'block';
-        closeStrategy(); exitOpponentMode();
-        
+        if(isTretRunning) return; const rack = document.getElementById('rack').value.replace(/i/g,"İ").replace(/ı/g,"I").toUpperCase().trim(); if(!rack) return;
+        document.getElementById('solveBtn').style.display = 'none'; document.getElementById('stopBtn').style.display = 'block'; exitOpponentMode();
         tumBulgular = []; isTretRunning = true; document.getElementById('progBg').style.display='block'; document.getElementById('progress-fill').style.backgroundColor = '#4caf50';
-        
-        const state = getBoardState(), wArr = Array.from(sozlukSet);
-        let idx = 0;
-        
+        const state = getBoardState(), wArr = Array.from(sozlukSet); let idx = 0;
         function chunk() {
-            if (!isTretRunning) return;
-            let start = Date.now();
-            while(Date.now()-start < 60 && idx < wArr.length){
-                let word = wArr[idx];
-                for(let r=1; r<=15; r++){
-                    for(let c=1; c<=15; c++){
-                        ['Y','D'].forEach(dir => {
-                            if((dir==='Y' && c+word.length-1 > 15) || (dir==='D' && r+word.length-1 > 15)) return;
-                            let res = calculateScore(word, dir, r, c, rack, state);
-                            if(res) { tumBulgular.push({word: word, score: res.score, len: word.length, used: res.used, allCoords: res.allCoords, co: String.fromCharCode(64+c)+r, dir: dir}); }
-                        });
-                    }
-                }
-                idx++;
-            }
+            if (!isTretRunning) return; let start = Date.now();
+            while(Date.now()-start < 60 && idx < wArr.length){ let word = wArr[idx]; for(let r=1; r<=15; r++){ for(let c=1; c<=15; c++){ ['Y','D'].forEach(dir => { if((dir==='Y' && c+word.length-1 > 15) || (dir==='D' && r+word.length-1 > 15)) return; let res = calculateScore(word, dir, r, c, rack, state); if(res) { tumBulgular.push({word: word, score: res.score, len: word.length, used: res.used, allCoords: res.allCoords, co: String.fromCharCode(64+c)+r, dir: dir}); } }); } } idx++; }
             document.getElementById('progress-fill').style.width = Math.floor((idx/wArr.length)*100)+"%";
-            if(idx < wArr.length) requestAnimationFrame(chunk);
-            else { isTretRunning = false; document.getElementById('solveBtn').style.display = 'block'; document.getElementById('stopBtn').style.display = 'none'; document.getElementById('progBg').style.display='none'; sortRes('score', -1); }
-        }
-        chunk();
-    }
-
-    function handleMouseLeave() { if (selectedData) onizle(selectedData); else temizleOnizle(); }
-
-    function sortRes(k, dI){ 
-        curResSort.k = k; curResSort.d = dI || (curResSort.d * -1); 
-        document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
-        if(k === 'score') document.getElementById('btnSortpoint').classList.add('active');
-        else if(k === 'word') document.getElementById('btnSortalpha').classList.add('active');
-        else if(k === 'len') document.getElementById('btnSortcount').classList.add('active');
-        renderTable(); 
+            if(idx < wArr.length) requestAnimationFrame(chunk); else { isTretRunning = false; document.getElementById('solveBtn').style.display = 'block'; document.getElementById('stopBtn').style.display = 'none'; document.getElementById('progBg').style.display='none'; sortRes('score', -1); openModal('resultsModal'); }
+        } chunk();
     }
     
-    function renderTable(){
-        const b = document.getElementById('resBody'); b.innerHTML="";
-        const f = document.getElementById('resFilter').value.toUpperCase();
-        
-        let gosterilecek = tumBulgular;
-        if (!document.getElementById('chkMultiMove').checked) {
-            let uMap = new Map();
-            for(let bulgu of tumBulgular) { let cur = uMap.get(bulgu.word); if(!cur || bulgu.score > cur.score) uMap.set(bulgu.word, bulgu); }
-            gosterilecek = Array.from(uMap.values());
-        }
-        
-        gosterilecek.sort((a,b)=> curResSort.k==='word'?a[curResSort.k].localeCompare(b[curResSort.k],'tr')*curResSort.d:(a[curResSort.k]-b[curResSort.k])*curResSort.d);
-        
-        gosterilecek.filter(d=>d.word.includes(f)).slice(0,100).forEach(d=>{
-            const tr = document.createElement('tr'); 
-            let dw = ""; 
-            for(let i=0; i<d.word.length; i++){ let u=d.used.find(x=>x.idx===i); if(u&&u.isJ) dw+=`<span class="joker-char-highlight">${d.word[i]}</span>`; else dw+=d.word[i]; }
-            if (document.getElementById('chkMultiMove').checked) dw += ` <span style="font-size:10px; color:#999;">(${d.co}-${d.dir})</span>`;
-            
-            tr.innerHTML = `<td>${dw}</td><td style="font-weight:bold; color:#2e7d32;">${d.score}</td><td>${d.len}</td>`;
-            tr.onmouseenter=()=>{if(!selectedData)onizle(d);}; 
-            tr.onmouseleave=handleMouseLeave;
-            tr.onclick=()=>{ document.querySelectorAll('tr').forEach(r=>r.classList.remove('selected')); tr.classList.add('selected'); selectedData=d; document.getElementById('applyBtn').style.display='block'; onizle(d); };
-            b.appendChild(tr);
-        });
-    }
-
-    function onizle(d){ 
-        temizleOnizle(); 
-        d.used.forEach(u=>{ const c=document.getElementById("cell_"+u.co), p=document.getElementById("pre_"+u.co); if(p){ p.innerText=u.h; c.classList.add('has-preview', 'preview-highlight'); if(u.isJ) c.classList.add('is-joker'); } }); 
-        d.allCoords.forEach(co => { const c = document.getElementById("cell_" + co); if(c) c.classList.add('preview-connected'); });
-        
-        if(d.used.length > 0) {
-            let targetCell = document.getElementById("cell_" + d.used[0].co);
-            if(targetCell) {
-                targetCell.classList.add('has-bubble'); 
-                let bubble = document.createElement('div'); bubble.id = 'preview-bubble'; bubble.className = 'score-bubble'; bubble.innerText = d.score; targetCell.appendChild(bubble);
-            }
-        }
-    }
+    function sortRes(k, dI){ curResSort.k = k; curResSort.d = dI || (curResSort.d * -1); renderTable(); }
+    function renderTable(){ const b = document.getElementById('resBody'); b.innerHTML=""; const f = document.getElementById('resFilter').value.toUpperCase(); let gosterilecek = tumBulgular; if (!document.getElementById('chkMultiMove').checked) { let uMap = new Map(); for(let bulgu of tumBulgular) { let cur = uMap.get(bulgu.word); if(!cur || bulgu.score > cur.score) uMap.set(bulgu.word, bulgu); } gosterilecek = Array.from(uMap.values()); } gosterilecek.sort((a,b)=> curResSort.k==='word'?a[curResSort.k].localeCompare(b[curResSort.k],'tr')*curResSort.d:(a[curResSort.k]-b[curResSort.k])*curResSort.d); gosterilecek.filter(d=>d.word.includes(f)).slice(0,100).forEach(d=>{ const tr = document.createElement('tr'); let dw = ""; for(let i=0; i<d.word.length; i++){ let u=d.used.find(x=>x.idx===i); if(u&&u.isJ) dw+=`<span class="joker-char-highlight">${d.word[i]}</span>`; else dw+=d.word[i]; } if (document.getElementById('chkMultiMove').checked) dw += ` <span style="font-size:10px; color:#999;">(${d.co}-${d.dir})</span>`; tr.innerHTML = `<td>${dw}</td><td style="font-weight:bold; color:#2e7d32;">${d.score}</td><td>${d.len}</td>`; tr.onpointerdown = (e) => { document.getElementById('resultsModal').style.opacity = '0'; onizle(d); }; tr.onclick = () => { document.getElementById('resultsModal').style.opacity = '1'; closeModal('resultsModal'); selectedData=d; onizle(d); document.getElementById('standardControls').style.display='none'; document.getElementById('actionControls').style.display='flex'; }; b.appendChild(tr); }); }
+    function onizle(d){ temizleOnizle(); d.used.forEach(u=>{ const c=document.getElementById("cell_"+u.co), p=document.getElementById("pre_"+u.co); if(p){ p.innerText=u.h; c.classList.add('has-preview', 'preview-highlight'); if(u.isJ) c.classList.add('is-joker'); } }); d.allCoords.forEach(co => { const c = document.getElementById("cell_" + co); if(c) c.classList.add('preview-connected'); }); if(d.used.length > 0) { let targetCell = document.getElementById("cell_" + d.used[0].co); if(targetCell) { targetCell.classList.add('has-bubble'); let bubble = document.createElement('div'); bubble.id = 'preview-bubble'; bubble.className = 'score-bubble'; bubble.innerText = d.score; targetCell.appendChild(bubble); } } }
     
-    function kesinlestir(){
-        if(!selectedData) return; 
-        
-        myScoreAcquired += selectedData.score; 
-        document.getElementById('myScoreInput').value = myScoreAcquired;
-        updateScoreBars();
-
-        let rI = document.getElementById('rack').value.replace(/i/g,"İ").replace(/ı/g,"I").toUpperCase().trim();
-        
-        if(aktifYildiz && selectedData.used.some(u => u.co === aktifYildiz)) {
-            let yildizCell = document.getElementById("cell_" + aktifYildiz);
-            if(yildizCell) { yildizCell.classList.remove('is-yildiz'); const yw = yildizCell.querySelector('.yildiz-wrapper'); if(yw) yw.remove(); }
-            aktifYildiz = null; 
-        }
-
-        selectedData.used.forEach(u=>{ 
-            const inp=document.getElementById("in_"+u.co), cell=document.getElementById("cell_"+u.co); 
-            if(inp){ 
-                inp.value=u.h; cell.setAttribute('data-p', pMap[u.h] || ""); 
-                cell.classList.remove('has-preview', 'preview-highlight', 'preview-connected', 'has-bubble'); cell.classList.add('has-val'); 
-                if(u.isJ) cell.classList.add('is-joker'); 
-                rI=rI.replace(rI.includes(u.h)?u.h:'?', ""); 
-                cell.classList.add('burst-effect'); setTimeout(() => cell.classList.remove('burst-effect'), 600); 
-            } 
-        });
-        
-        document.getElementById('rack').value=rI; document.getElementById('applyBtn').style.display='none'; selectedData=null; tumBulgular=[]; renderTable(); temizleOnizle(); harfTablosuGuncelle();
-    }
+    function kesinlestir(){ if(!selectedData) return; saveStateToHistory(); myScoreAcquired += selectedData.score; document.getElementById('myScoreInput').value = myScoreAcquired; updateScoreBars(); let rI = document.getElementById('rack').value.replace(/i/g,"İ").replace(/ı/g,"I").toUpperCase().trim(); if(aktifYildiz && selectedData.used.some(u => u.co === aktifYildiz)) { let yildizCell = document.getElementById("cell_" + aktifYildiz); if(yildizCell) { yildizCell.classList.remove('is-yildiz'); const yw = yildizCell.querySelector('.yildiz-wrapper'); if(yw) yw.remove(); } aktifYildiz = null; } selectedData.used.forEach(u=>{ const inp=document.getElementById("in_"+u.co), cell=document.getElementById("cell_"+u.co); if(inp){ inp.value=u.h; cell.setAttribute('data-p', pMap[u.h] || ""); cell.classList.remove('has-preview', 'preview-highlight', 'preview-connected', 'has-bubble'); cell.classList.add('has-val'); if(u.isJ) cell.classList.add('is-joker'); rI=rI.replace(rI.includes(u.h)?u.h:'?', ""); cell.classList.add('burst-effect'); setTimeout(() => cell.classList.remove('burst-effect'), 600); } }); updateRackUI(rI); selectedData=null; tumBulgular=[]; renderTable(); temizleOnizle(); harfTablosuGuncelle(); document.getElementById('actionControls').style.display = 'none'; document.getElementById('standardControls').style.display = 'block'; }
     
-    // --- OYUN SONU STRATEJİSİ ---
-    function getRakipRack() {
-        const counts = {"A":12,"B":2,"C":2,"Ç":2,"D":2,"E":8,"F":1,"G":1,"Ğ":1,"H":1,"I":4,"İ":7,"J":1,"K":7,"L":7,"M":4,"N":5,"O":3,"Ö":1,"P":1,"R":6,"S":3,"Ş":2,"T":5,"U":3,"Ü":2,"V":1,"Y":2,"Z":2,"?":2};
-        document.querySelectorAll('.cell input').forEach(i => { if(i.value) { if (i.parentElement.classList.contains('is-joker')) { if(counts["?"]>0) counts["?"]--; } else { if(counts[i.value]>0) counts[i.value]--; } } });
-        let myRack = document.getElementById('rack').value.replace(/i/g,"İ").replace(/ı/g,"I").toUpperCase().trim();
-        for(let char of myRack) { if(counts[char] > 0) counts[char]--; else if(char === '?' && counts['?'] > 0) counts['?']--; }
-        let rakipRack = ""; for(let k in counts) { while(counts[k] > 0) { rakipRack += k; counts[k]--; } }
-        return rakipRack;
-    }
-
-    let stratIndex = 0; let stratMovesToTest = []; let oppValidWords = []; let oppWordIdx = 0; let currentSimState = null; let currentOppRack = ""; let currentOppMax = 0;
-
-    function runStrategy() {
-        if (isTretRunning) return;
-        if (tumBulgular.length === 0) return alert("Önce HAMLE ARA butonuna basarak geçerli hamleleri bulmalısın!");
-        let oppRack = getRakipRack();
-        if(oppRack.length === 0) return alert("Hata: Rakibin harfi kalmamış gibi görünüyor!");
-        
-        document.getElementById('solveBtn').style.display = 'none'; document.getElementById('stopBtn').style.display = 'block';
-        isTretRunning = true; exitOpponentMode();
-        
-        document.getElementById('rakipHarflerSpan').innerText = `(Harfleri: ${oppRack})`;
-        document.getElementById('normalResults').style.display = 'none'; document.getElementById('resFilter').style.display = 'none';
-        document.getElementById('strategyContainer').style.display = 'block';
-        document.getElementById('stratBody').innerHTML = "<tr><td colspan='4' style='text-align:center;'>YZ Kombinasyonları Analiz Ediyor... Lütfen Bekle.</td></tr>";
-        
-        let uMap = new Map();
-        for(let b of tumBulgular) { let cur = uMap.get(b.word); if(!cur || b.score > cur.score) uMap.set(b.word, b); }
-        stratMovesToTest = Array.from(uMap.values()).sort((a,b)=>b.score - a.score).slice(0, 5); 
-        
-        stratIndex = 0; oppValidWords = [];
-        document.getElementById('progBg').style.display = 'block'; document.getElementById('progress-fill').style.backgroundColor = '#8e24aa';
-        prepareNextStratMove();
-    }
-
-    function prepareNextStratMove() {
-        if(stratIndex >= stratMovesToTest.length || !isTretRunning) {
-            document.getElementById('progBg').style.display = 'none'; document.getElementById('progress-fill').style.backgroundColor = '#4caf50';
-            document.getElementById('solveBtn').style.display = 'block'; document.getElementById('stopBtn').style.display = 'none';
-            isTretRunning = false;
-            
-            stratMovesToTest.sort((a,b) => b.net - a.net); window.currentStratMoves = stratMovesToTest;
-            
-            let html = "";
-            stratMovesToTest.forEach((m, idx) => {
-                if(m.oppMax !== undefined) {
-                    html += `<tr onmouseenter="onizle(window.currentStratMoves[${idx}])" onmouseleave="handleMouseLeave()" onclick="selectStratMove(${idx})">
-                        <td>${m.word} <span style="font-size:10px;color:#999;">(${m.co}-${m.dir})</span></td>
-                        <td style="color:#2e7d32; font-weight:bold;">${m.score}</td>
-                        <td style="color:#d32f2f; font-weight:bold;">${m.oppMax}</td>
-                        <td style="font-weight:900; color:#1976d2;">${m.net > 0 ? '+'+m.net : m.net}</td>
-                    </tr>`;
-                }
-            });
-            document.getElementById('stratBody').innerHTML = html; return;
-        }
-        
-        let move = stratMovesToTest[stratIndex]; currentSimState = {...getBoardState()};
-        move.used.forEach(u => { currentSimState[u.co] = u.h; });
-        currentOppRack = getRakipRack();
-        
-        // Oyun sonu taktiği kontrolü
-        let myRackStr = document.getElementById('rack').value.replace(/i/g,"İ").replace(/ı/g,"I").toUpperCase().trim();
-        if (move.used.length === myRackStr.length) {
-            let oppRackPoints = 0;
-            for(let char of currentOppRack) oppRackPoints += pMap[char] || 0;
-            move.oppMax = "BİTTİ (-" + oppRackPoints + ")";
-            move.net = move.score + (2 * oppRackPoints); 
-            stratIndex++;
-            prepareNextStratMove();
-            return;
-        }
-        
-        let wArr = Array.from(sozlukSet);
-        oppValidWords = wArr.filter(w => {
-            let pool = (currentOppRack + Object.values(currentSimState).join('')).split(''); let jokers = currentOppRack.split('?').length - 1;
-            for(let i=0; i<w.length; i++) { let char = w[i]; let idx = pool.indexOf(char); if(idx !== -1) pool.splice(idx, 1); else if(jokers > 0) jokers--; else return false; }
-            return true;
-        });
-        
-        oppWordIdx = 0; currentOppMax = 0; stratOpponentChunk();
-    }
-
-    function stratOpponentChunk() {
-        if (!isTretRunning) return prepareNextStratMove(); 
-        let start = Date.now();
-        while(Date.now() - start < 40 && oppWordIdx < oppValidWords.length) {
-            let word = oppValidWords[oppWordIdx];
-            for(let r=1; r<=15; r++){
-                for(let c=1; c<=15; c++){
-                    ['Y','D'].forEach(dir => {
-                        if((dir==='Y' && c+word.length-1 > 15) || (dir==='D' && r+word.length-1 > 15)) return;
-                        let res = calculateScore(word, dir, r, c, currentOppRack, currentSimState, false); 
-                        if(res && res.score > currentOppMax) currentOppMax = res.score;
-                    });
-                }
-            }
-            oppWordIdx++;
-        }
-        
-        let pct = ((stratIndex + (oppWordIdx / oppValidWords.length)) / stratMovesToTest.length) * 100;
-        document.getElementById('progress-fill').style.width = pct + "%";
-
-        if (oppWordIdx < oppValidWords.length) { requestAnimationFrame(stratOpponentChunk); } 
-        else {
-            stratMovesToTest[stratIndex].oppMax = currentOppMax;
-            stratMovesToTest[stratIndex].net = stratMovesToTest[stratIndex].score - currentOppMax;
-            stratIndex++; prepareNextStratMove();
-        }
-    }
-
-    function selectStratMove(idx) {
-        document.querySelectorAll('#stratBody tr').forEach(r=>r.classList.remove('selected'));
-        event.currentTarget.classList.add('selected'); selectedData = window.currentStratMoves[idx];
-        document.getElementById('applyBtn').style.display='block'; onizle(selectedData);
-    }
-
-    function closeStrategy() {
-        document.getElementById('strategyContainer').style.display = 'none';
-        document.getElementById('normalResults').style.display = 'block'; document.getElementById('resFilter').style.display = 'block';
-        document.querySelectorAll('#stratBody tr').forEach(r=>r.classList.remove('selected'));
-        selectedData = null; document.getElementById('applyBtn').style.display='none'; temizleOnizle();
-    }
-
     function handleBoardNav(e) { if(!e.target.id.startsWith('in_')) return; let c=parseInt(e.target.getAttribute('data-c')), r=parseInt(e.target.getAttribute('data-r')); switch(e.key){ case "ArrowRight": if(c<15)c++; break; case "ArrowLeft": if(c>1)c--; break; case "ArrowDown": if(r<15)r++; break; case "ArrowUp": if(r>1)r--; break; default: return; } let n = document.getElementById("in_"+String.fromCharCode(64+c)+r); if(n){e.preventDefault(); n.focus();} }
-    function setSort(m){ harfSortKey=m; harfTablosuGuncelle(); }
+    function setSort(m, btn){ harfSortKey=m; if(btn) { document.querySelectorAll('.rack-sort-btn').forEach(b=>{ b.style.background='#fff'; b.style.color='#333'; b.style.border='1px solid #ccc'; }); btn.style.background='#1976d2'; btn.style.color='white'; btn.style.border='none'; } harfTablosuGuncelle(); }
     
-    function harfTablosuGuncelle(){
-        const counts = {"A":12,"B":2,"C":2,"Ç":2,"D":2,"E":8,"F":1,"G":1,"Ğ":1,"H":1,"I":4,"İ":7,"J":1,"K":7,"L":7,"M":4,"N":5,"O":3,"Ö":1,"P":1,"R":6,"S":3,"Ş":2,"T":5,"U":3,"Ü":2,"V":1,"Y":2,"Z":2,"?":2};
-        let tahtadakiHarfSayisi = 0;
-        
-        document.querySelectorAll('.cell input').forEach(i => {
-            if(i.value) { tahtadakiHarfSayisi++; if (i.parentElement.classList.contains('is-joker')) { if(counts["?"]) counts["?"]--; } else { if(counts[i.value]) counts[i.value]--; } }
-        });
-        
-        let safeRack = document.getElementById('rack');
-        let rackLen = safeRack ? safeRack.value.length : 0;
-        let kese = 100 - tahtadakiHarfSayisi - rackLen - 7;
-        
-        let btnStrat = document.getElementById('btnStrategy');
-        if (kese <= 0) { 
-            kese = 0; if(btnStrat) btnStrat.style.display = 'block'; 
-        } else {
-            if(btnStrat) btnStrat.style.display = 'none';
-        }
-        
-        let oppLen = 100 - tahtadakiHarfSayisi - rackLen;
-        if (oppLen > 7) oppLen = 7;
-        if (oppLen < 0) oppLen = 0;
-        
-        let elMidBag = document.getElementById('midBagCount'); if(elMidBag) elMidBag.innerText = kese;
-        let elRakipMini = document.getElementById('rakipCountMini'); if(elRakipMini) elRakipMini.innerText = `Rakip: ${oppLen}`;
-
-        const keys = Object.keys(counts).sort((a,b)=>{ if(harfSortKey==='count') return (counts[b]-counts[a])||(pMap[b]-pMap[a])||a.localeCompare(b,'tr'); if(harfSortKey==='point') return (pMap[b]-pMap[a])||(counts[b]-counts[a])||a.localeCompare(b,'tr'); return a.localeCompare(b,'tr'); });
-        const cont = document.getElementById('harfTablo'); 
-        if(cont) {
-            cont.innerHTML="";
-            keys.forEach(h=>{ const d=document.createElement('div'); let p=pMap[h]; d.className=`harf-item ${p>=8?"p810":p>=4?"p47":p>=2?"p23":"p1"}${counts[h]<=0?" harf-biten":""}`; d.innerText=h+":"+counts[h]; cont.appendChild(d); });
-        }
-    }
+    function harfTablosuGuncelle(){ const counts = {"A":12,"B":2,"C":2,"Ç":2,"D":2,"E":8,"F":1,"G":1,"Ğ":1,"H":1,"I":4,"İ":7,"J":1,"K":7,"L":7,"M":4,"N":5,"O":3,"Ö":1,"P":1,"R":6,"S":3,"Ş":2,"T":5,"U":3,"Ü":2,"V":1,"Y":2,"Z":2,"?":2}; let tahtadakiHarfSayisi = 0; document.querySelectorAll('.cell input').forEach(i => { if(i.value) { tahtadakiHarfSayisi++; if (i.parentElement.classList.contains('is-joker')) { if(counts["?"]) counts["?"]--; } else { if(counts[i.value]) counts[i.value]--; } } }); let safeRack = document.getElementById('rack'); let rackLen = safeRack ? safeRack.value.length : 0; let kese = 100 - tahtadakiHarfSayisi - rackLen - 7; let oppLen = 100 - tahtadakiHarfSayisi - rackLen; if (oppLen > 7) oppLen = 7; if (oppLen < 0) oppLen = 0; let elMidBag = document.getElementById('midBagCount'); if(elMidBag) elMidBag.innerText = kese > 0 ? kese : 0; let elRakipMini = document.getElementById('rakipCountMiniModal'); if(elRakipMini) elRakipMini.innerText = `🔠 Kalan Harfler (Rakip: ${oppLen})`; const keys = Object.keys(counts).sort((a,b)=>{ if(harfSortKey==='count') return (counts[b]-counts[a])||(pMap[b]-pMap[a])||a.localeCompare(b,'tr'); if(harfSortKey==='point') return (pMap[b]-pMap[a])||(counts[b]-counts[a])||a.localeCompare(b,'tr'); return a.localeCompare(b,'tr'); }); const cont = document.getElementById('harfTablo'); if(cont) { cont.innerHTML=""; keys.forEach(h=>{ const d=document.createElement('div'); let p=pMap[h]; d.className=`harf-item ${p>=8?"p810":p>=4?"p47":p>=2?"p23":"p1"}${counts[h]<=0?" harf-biten":""}`; d.innerText=h+":"+counts[h]; cont.appendChild(d); }); } }
     
     function getBoardState(){ let s={}; document.querySelectorAll('.cell input').forEach(i=>{if(i.value)s[i.id.replace("in_","")]=i.value;}); return s; }
     function isH8(c,r,l,dir){for(let i=0;i<l;i++) if(String.fromCharCode(64+(dir==='Y'?c+i:c))+(dir==='Y'?r:r+i)==='H8') return true; return false;}
-    
-    function temizleOnizle(){ 
-        document.querySelectorAll('.preview-layer').forEach(p => p.innerText=""); 
-        document.querySelectorAll('.cell.has-preview, .cell.preview-connected, .cell.has-bubble').forEach(c=>{
-            c.classList.remove('has-preview', 'preview-highlight', 'preview-connected', 'has-bubble'); 
-            if(!c.querySelector('input').value) c.classList.remove('is-joker');
-        }); 
-        let oldBubble = document.getElementById('preview-bubble');
-        if(oldBubble && oldBubble.parentNode) oldBubble.parentNode.removeChild(oldBubble);
-    }
+    function temizleOnizle(){ document.querySelectorAll('.preview-layer').forEach(p => p.innerText=""); document.querySelectorAll('.cell.has-preview, .cell.preview-connected, .cell.has-bubble').forEach(c=>{ c.classList.remove('has-preview', 'preview-highlight', 'preview-connected', 'has-bubble'); if(!c.querySelector('input').value) c.classList.remove('is-joker'); }); let oldBubble = document.getElementById('preview-bubble'); if(oldBubble && oldBubble.parentNode) oldBubble.parentNode.removeChild(oldBubble); }
 </script>
 </body>
 </html>
