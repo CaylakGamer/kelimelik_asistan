@@ -2,9 +2,8 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Kelimelik Pro - v5.0 Final</title>
-    <!-- TESSERACT.JS (HTTPS Üzerinde Çalışır) -->
     <script src="https://unpkg.com/tesseract.js@v4.1.1/dist/tesseract.min.js"></script>
     <script src="sozluk.js"></script>
     <style>
@@ -19,7 +18,7 @@
         .app-wrapper { display: flex; flex-direction: column; width: 100%; max-width: 500px; min-height: 100vh; background: var(--bg); position: relative; transition: all 0.3s ease; }
         
         /* ÜST NAVİGASYON BARI */
-        .top-bar { background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 100; }
+        .top-bar { background: var(--primary); color: white; display: flex; justify-content: space-between; align-items: center; padding: max(35px, env(safe-area-inset-top)) 15px 12px 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 100; }
         .top-bar-btn { background: transparent; border: none; color: white; font-weight: bold; font-size: 13px; cursor: pointer; padding: 5px; display: flex; align-items: center; gap: 4px; transition: 0.2s;}
         .top-bar-btn:active { opacity: 0.7; }
         .top-bar-title { font-weight: 900; font-size: 16px; letter-spacing: 1px; }
@@ -150,7 +149,6 @@
 <body>
 
 <div class="app-wrapper">
-    <!-- ÜST NAVİGASYON BARI -->
     <div class="top-bar">
         <button class="top-bar-btn" onclick="showGamesMenu()">☰ Oyunlar</button>
         <div class="top-bar-title" id="topBarTitle">Kelimelik Pro</div>
@@ -163,9 +161,7 @@
 
     <div class="container">
         
-        <!-- ================= SOL SÜTUN (Masaüstü) / ÜST (Mobil) ================= -->
         <div class="board-col">
-            <!-- SKOR EKRANI -->
             <div class="score-container">
                 <div class="score-box my-score"><span style="font-size: 10px; opacity: 0.9;">SEN</span><input type="number" id="myScoreInput" class="score-input" value="0" oninput="updateScoreManually()"></div>
                 <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; position: relative;">
@@ -179,10 +175,8 @@
                 <div class="score-box opp-score"><span style="font-size: 10px; opacity: 0.9;">RAKİP</span><input type="number" id="oppScoreInput" class="score-input" value="0" oninput="updateScoreManually()"></div>
             </div>
 
-            <!-- TAHTA -->
             <div id="board" class="board"></div>
 
-            <!-- ISTAKA -->
             <div class="rack-wrapper">
                 <div class="rack-container">
                     <div class="rack-tile"><input type="text" maxlength="1" class="r-inp" id="r_0"></div>
@@ -197,9 +191,7 @@
             </div>
         </div>
 
-        <!-- ================= SAĞ SÜTUN (Masaüstü) / ALT (Mobil) ================= -->
         <div class="control-col">
-            <!-- KONTROLLER VE AKSİYON IZGARASI -->
             <div class="control-card">
                 <div id="standardControls">
                     <div class="progress-bar-bg" id="progBg"><div id="progress-fill"></div></div>
@@ -231,7 +223,6 @@
     </div>
 </div>
 
-<!-- KELİME SONUÇLARI (MODAL) -->
 <div id="resultsModal" class="modal-overlay">
     <div class="modal-header">
         <div class="modal-title">✨ Bulunan Hamleler</div>
@@ -248,7 +239,6 @@
     </div>
 </div>
 
-<!-- KALAN HARFLER BALONCUĞU -->
 <div id="lettersModal" class="modal-overlay">
     <div class="modal-header" style="background: #607d8b;">
         <div class="modal-title" id="rakipCountMiniModal">🔠 Kalan Harfler (Rakip: 7)</div>
@@ -263,14 +253,12 @@
     </div>
 </div>
 
-<!-- AKILLI OCR EKRANI -->
 <div id="ocrOverlay" class="ocr-overlay">
     <div class="loader"></div>
     <h3 style="margin:0; color:#ebc427;">Görüntü İşleniyor</h3>
     <p id="ocrStatusText" style="font-size: 14px; color:#fff; margin-top:10px;">Referans renkler aranıyor...<br>(#1b93bf ve #1a7097)</p>
 </div>
 
-<!-- OYUNLAR MENÜSÜ -->
 <div id="gamesMenu" class="games-menu">
     <div class="games-header">
         <button class="top-bar-btn" onclick="hideGamesMenu()" style="font-size:20px;">✕</button>
@@ -329,15 +317,22 @@
                 }
                 statusText.innerHTML = "Sınırlar Bulundu!<br>Google Tesseract Yapay Zeka Motoru Başlatılıyor...";
                 try {
-                    const worker = new Tesseract.TesseractWorker();
-                    worker.recognize(img, 'tur')
-                        .progress(progress => { if(progress.status === 'recognizing text') statusText.innerHTML = `Yapay Zeka Okuyor: %${Math.round(progress.progress * 100)}...`; })
-                        .then(result => {
-                            document.getElementById('ocrOverlay').style.display = 'none'; input.value = "";
-                            alert("Yapay Zeka İşlemi Tamamlandı!\n\nSenin o harika mavi renk kodlarınla tahtayı bulduk ve okuduk.\n\nAncak daha önce söylediğim gibi, taşların köşesindeki puanlar sistemi şaşırtıyor. Kusursuz bir eşleşme için ileride özel bir Python sunucusuna geçeceğiz.\n\nOkunan Metin:\n" + result.text.substring(0, 80) + "...");
-                        })
-                        .catch(err => { document.getElementById('ocrOverlay').style.display = 'none'; input.value = ""; alert("Hata: " + err); });
-                } catch (e) { document.getElementById('ocrOverlay').style.display = 'none'; input.value = ""; alert("OCR başlatılamadı. Dosyayı http üzerinden çalıştırdığınızdan emin olun."); }
+                    // Tesseract v4 güncel API yapısı
+                    Tesseract.recognize(
+                        img,
+                        'tur',
+                        { logger: m => { if(m.status === 'recognizing text') statusText.innerHTML = `Yapay Zeka Okuyor: %${Math.round(m.progress * 100)}...`; } }
+                    ).then(({ data: { text } }) => {
+                        document.getElementById('ocrOverlay').style.display = 'none'; input.value = "";
+                        alert("Yapay Zeka İşlemi Tamamlandı!\n\nSenin o mavi renk kodlarınla tahtayı bulduk ve okuduk.\n\nAncak daha önce söylediğim gibi, taşların köşesindeki puanlar sistemi şaşırtıyor. Kusursuz bir eşleşme için ileride özel bir Python sunucusuna geçeceğiz.\n\nOkunan Metin:\n" + text.substring(0, 80) + "...");
+                    }).catch(err => { 
+                        document.getElementById('ocrOverlay').style.display = 'none'; input.value = ""; 
+                        alert("Hata: " + err); 
+                    });
+                } catch (e) { 
+                    document.getElementById('ocrOverlay').style.display = 'none'; input.value = ""; 
+                    alert("OCR başlatılamadı. Hata detayı: " + e.message); 
+                }
             }
             img.src = event.target.result;
         }
